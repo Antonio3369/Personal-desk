@@ -1,0 +1,136 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model City {
+  id              String      @id @default(cuid())
+  name            String      @unique
+  sortOrder       Int         @default(0)
+  teamIssues      String?
+  businessIssues  String?
+  notes           String?
+  leaderLink      String?
+  leaderContactId String?
+  leaderContact   Contact?    @relation("CityLeader", fields: [leaderContactId], references: [id])
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  todos           Todo[]
+  contacts        Contact[]   @relation("ContactCity")
+  notes_rel       Note[]
+  issues          CityIssue[]
+}
+
+model CityIssue {
+  id              String    @id @default(cuid())
+  cityId          String
+  city            City      @relation(fields: [cityId], references: [id], onDelete: Cascade)
+  type            String
+  content         String
+  status          String    @default("open")
+  resolveOutcome  String?
+  createdAt       DateTime  @default(now())
+  resolvedAt      DateTime?
+}
+
+model Contact {
+  id                  String    @id @default(cuid())
+  name                String
+  role                String?
+  organization        String?
+  relationType        String?
+  cityId              String?
+  city                City?     @relation("ContactCity", fields: [cityId], references: [id])
+  notes               String?
+  lastInteractionAt   DateTime?
+  interactionSummary  String?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  todos               Todo[]
+  ledCities           City[]    @relation("CityLeader")
+  notes_rel           Note[]
+}
+
+model Todo {
+  id           String    @id @default(cuid())
+  content      String
+  scope        String    @default("work")
+  nature       String?
+  progress     String    @default("not_started")
+  followUpDate DateTime?
+  source       String?
+  cityId       String?
+  city         City?     @relation(fields: [cityId], references: [id])
+  contactId    String?
+  contact      Contact?  @relation(fields: [contactId], references: [id])
+  completedAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  tags         TodoTag[]
+  images       TodoImage[]
+}
+
+model TodoImage {
+  id        String   @id @default(cuid())
+  todoId    String
+  todo      Todo     @relation(fields: [todoId], references: [id], onDelete: Cascade)
+  path      String
+  createdAt DateTime @default(now())
+}
+
+model Tag {
+  id         String    @id @default(cuid())
+  name       String    @unique
+  usageCount Int       @default(0)
+  createdAt  DateTime  @default(now())
+  todoTags   TodoTag[]
+  noteTags   NoteTag[]
+}
+
+model TodoTag {
+  todoId String
+  tagId  String
+  todo   Todo   @relation(fields: [todoId], references: [id], onDelete: Cascade)
+  tag    Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([todoId, tagId])
+}
+
+model Note {
+  id         String    @id @default(cuid())
+  type       String
+  title      String?
+  content    String?
+  link       String?
+  platform   String?
+  highlight  String?
+  summary    String?
+  category   String?
+  readStatus String    @default("unread")
+  cityId     String?
+  city       City?     @relation(fields: [cityId], references: [id])
+  contactId  String?
+  contact    Contact?  @relation(fields: [contactId], references: [id])
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  tags       NoteTag[]
+}
+
+model NoteTag {
+  noteId String
+  tagId  String
+  note   Note   @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  tag    Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([noteId, tagId])
+}
+
+model AppSetting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}

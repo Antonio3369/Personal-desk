@@ -1,0 +1,25 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: personal-desk-app
+    restart: unless-stopped
+    # 与 ali / hk 同机，限制内存避免拖死整机
+    mem_limit: 768m
+    memswap_limit: 768m
+    ports:
+      - "127.0.0.1:6789:6789"
+    environment:
+      NODE_ENV: production
+      NODE_OPTIONS: --max-old-space-size=512
+      DATABASE_URL: file:/app/data/dev.db
+      SESSION_SECRET: ${SESSION_SECRET:?set SESSION_SECRET in .env}
+      APP_PASSWORD: ${APP_PASSWORD:-desk2026}
+    volumes:
+      - desk_sqlite:/app/data
+      - desk_uploads:/app/public/uploads/todos
+
+volumes:
+  desk_sqlite:
+  desk_uploads:
