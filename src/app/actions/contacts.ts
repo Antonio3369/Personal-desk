@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
+import { requireModuleAccess } from "@/lib/module-guard";
 
 export async function createContactAction(input: {
   name: string;
@@ -12,8 +13,11 @@ export async function createContactAction(input: {
   notes?: string | null;
   interactionSummary?: string | null;
 }) {
+  const { workspaceId } = await requireModuleAccess("contacts");
+
   const contact = await db.contact.create({
     data: {
+      workspaceId,
       name: input.name.trim(),
       role: input.role ?? null,
       organization: input.organization ?? null,
@@ -45,6 +49,12 @@ export async function updateContactAction(
     interactionSummary: string | null;
   }>,
 ) {
+  const { workspaceId } = await requireModuleAccess("contacts");
+  const existing = await db.contact.findFirst({ where: { id, workspaceId } });
+  if (!existing) {
+    throw new Error("人脉不存在");
+  }
+
   const contact = await db.contact.update({
     where: { id },
     data: {

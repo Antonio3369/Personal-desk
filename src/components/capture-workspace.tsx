@@ -1,10 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { BookOpen, CheckSquare, Lightbulb, MessageSquare } from "lucide-react";
 import { QuickCaptureForm } from "@/components/forms";
 import { NoteCreateForm } from "@/components/note-forms";
+import { isModuleEnabled } from "@/lib/module-access";
 import { type NoteType, type TodoScope } from "@/lib/constants";
+import type { ModuleKey } from "@/lib/modules";
 import { cn } from "@/lib/utils";
 
 type Option = { id: string; name: string };
@@ -27,47 +29,70 @@ const captureModes = [
   },
 ];
 
+function filterCaptureModes(enabledModules: ModuleKey[]) {
+  return captureModes.filter((mode) => {
+    if (mode.group === "todo") {
+      return isModuleEnabled(enabledModules, "todos");
+    }
+    return isModuleEnabled(enabledModules, "notes");
+  });
+}
+
 export function CaptureWorkspace({
   defaultType = "work",
+  enabledModules,
   cities,
   contacts,
   tagOptions,
 }: {
   defaultType?: string;
+  enabledModules: ModuleKey[];
   cities: Option[];
   contacts: Option[];
   tagOptions: string[];
 }) {
-  const initialMode =
-    captureModes.find((mode) => mode.id === defaultType) ?? captureModes[0];
-  const [activeModeId, setActiveModeId] = useState(initialMode.id);
+  const visibleModes = useMemo(
+    () => filterCaptureModes(enabledModules),
+    [enabledModules],
+  );
+  const preferredMode =
+    visibleModes.find((mode) => mode.id === defaultType) ?? visibleModes[0];
+  const [activeModeId, setActiveModeId] = useState(preferredMode?.id ?? "work");
   const activeMode =
-    captureModes.find((mode) => mode.id === activeModeId) ?? captureModes[0];
+    visibleModes.find((mode) => mode.id === activeModeId) ?? visibleModes[0];
+
+  if (!activeMode) {
+    return (
+      <p className="text-sm text-stone-500">当前没有可用的记录类型。</p>
+    );
+  }
 
   return (
     <div className="space-y-5">
-      <div className="flex gap-2 overflow-x-auto pb-1">
-        {captureModes.map((mode) => {
-          const Icon = mode.icon;
-          const active = mode.id === activeMode.id;
-          return (
-            <button
-              key={mode.id}
-              type="button"
-              onClick={() => setActiveModeId(mode.id)}
-              className={cn(
-                "inline-flex shrink-0 items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition",
-                active
-                  ? "bg-teal-900 text-white"
-                  : "bg-stone-100 text-stone-600 hover:bg-stone-200",
-              )}
-            >
-              <Icon className="h-4 w-4 stroke-[1.5]" />
-              {mode.label}
-            </button>
-          );
-        })}
-      </div>
+      {visibleModes.length > 1 ? (
+        <div className="flex gap-2 overflow-x-auto pb-1">
+          {visibleModes.map((mode) => {
+            const Icon = mode.icon;
+            const active = mode.id === activeMode.id;
+            return (
+              <button
+                key={mode.id}
+                type="button"
+                onClick={() => setActiveModeId(mode.id)}
+                className={cn(
+                  "inline-flex shrink-0 items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition",
+                  active
+                    ? "bg-teal-900 text-white"
+                    : "bg-stone-100 text-stone-600 hover:bg-stone-200",
+                )}
+              >
+                <Icon className="h-4 w-4 stroke-[1.5]" />
+                {mode.label}
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
 
       {activeMode.group === "todo" ? (
         <QuickCaptureForm

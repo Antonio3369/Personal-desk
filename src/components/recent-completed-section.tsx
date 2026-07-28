@@ -16,8 +16,11 @@ export function RecentCompletedSection({ items }: { items: TodoItem[] }) {
         defaultOpen={false}
         bordered={false}
         action={
-          <Link href="/todos?view=done" className="text-sm text-stone-500">
-            查看全部
+          <Link
+            href="/todos?view=done"
+            className="text-sm text-stone-500 hover:text-stone-800"
+          >
+            全部已完成
           </Link>
         }
       >

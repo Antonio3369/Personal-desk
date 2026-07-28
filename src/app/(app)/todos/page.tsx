@@ -17,6 +17,8 @@ export default async function TodosPage() {
           progress: item.progress,
           scope: item.scope,
           followUpDate: item.followUpDate?.toISOString() ?? null,
+          completedAt: item.completedAt?.toISOString() ?? null,
+          updatedAt: item.updatedAt.toISOString(),
           city: item.city,
         }))}
         listItems={listItems.map((item) => ({

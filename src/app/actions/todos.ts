@@ -4,10 +4,9 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { getFormOptions } from "@/lib/queries";
 import {
-  deleteTodoImageFiles,
-  getTodoImageFiles,
-  saveTodoImages,
-} from "@/lib/todo-images";
+  deleteUploadImageFiles,
+} from "@/lib/upload-images";
+import { requireModuleAccess } from "@/lib/module-guard";
 import type { TodoProgress, TodoScope } from "@/lib/constants";
 
 type TodoInput = {
@@ -21,32 +20,41 @@ type TodoInput = {
   contactId?: string | null;
   tagNames?: string[];
   imagePaths?: string[];
+  addImagePaths?: string[];
 };
 
-async function upsertTags(tagNames: string[] = []) {
+async function upsertTags(workspaceId: string, tagNames: string[] = []) {
   const tags = [];
   for (const name of tagNames.map((item) => item.trim()).filter(Boolean)) {
     const tag = await db.tag.upsert({
-      where: { name },
+      where: { workspaceId_name: { workspaceId, name } },
       update: { usageCount: { increment: 1 } },
-      create: { name, usageCount: 1 },
+      create: { workspaceId, name, usageCount: 1 },
     });
     tags.push(tag);
   }
   return tags;
 }
 
+async function assertTodoInWorkspace(id: string, workspaceId: string) {
+  const todo = await db.todo.findFirst({ where: { id, workspaceId } });
+  if (!todo) {
+    throw new Error("待办不存在");
+  }
+  return todo;
+}
+
 export async function createTodoFromFormAction(formData: FormData) {
   const content = String(formData.get("content") ?? "").trim();
   const scope = (String(formData.get("scope") ?? "work") || "work") as TodoScope;
   const tagNames = JSON.parse(String(formData.get("tagNames") ?? "[]")) as string[];
-  const imageFiles = getTodoImageFiles(formData);
+  const imagePaths = JSON.parse(
+    String(formData.get("imagePaths") ?? "[]"),
+  ) as string[];
 
-  if (!content && !imageFiles.length) {
+  if (!content && !imagePaths.length) {
     throw new Error("请填写内容或添加图片");
   }
-
-  const imagePaths = imageFiles.length ? await saveTodoImages(imageFiles) : [];
 
   return createTodoAction({
     content: content || "（见附图）",
@@ -62,6 +70,7 @@ export async function createTodoFromFormAction(formData: FormData) {
 }
 
 export async function getTodoEditOptionsAction() {
+  await requireModuleAccess("todos");
   return getFormOptions();
 }
 
@@ -70,10 +79,16 @@ export async function updateTodoFromFormAction(id: string, formData: FormData) {
   const scope = (String(formData.get("scope") ?? "work") || "work") as TodoScope;
   const tagNames = JSON.parse(String(formData.get("tagNames") ?? "[]")) as string[];
   const progress = String(formData.get("progress") ?? "not_started") as TodoProgress;
+  const addImagePaths = JSON.parse(
+    String(formData.get("imagePaths") ?? "[]"),
+  ) as string[];
 
   if (!content) {
-    const imageCount = await db.todoImage.count({ where: { todoId: id } });
-    if (!imageCount) {
+    const { workspaceId } = await requireModuleAccess("todos");
+    const imageCount = await db.todoImage.count({
+      where: { todoId: id, todo: { workspaceId } },
+    });
+    if (!imageCount && !addImagePaths.length) {
       throw new Error("请填写内容");
     }
   }
@@ -87,12 +102,16 @@ export async function updateTodoFromFormAction(id: string, formData: FormData) {
     cityId: String(formData.get("cityId") ?? "") || null,
     contactId: String(formData.get("contactId") ?? "") || null,
     tagNames,
+    addImagePaths,
   });
 }
 
 export async function createTodoAction(input: TodoInput) {
+  const { workspaceId } = await requireModuleAccess("todos");
+
   const todo = await db.todo.create({
     data: {
+      workspaceId,
       content: input.content.trim(),
       scope: input.scope ?? "work",
       nature: input.nature ?? null,
@@ -105,7 +124,7 @@ export async function createTodoAction(input: TodoInput) {
   });
 
   if (input.tagNames?.length) {
-    const tags = await upsertTags(input.tagNames);
+    const tags = await upsertTags(workspaceId, input.tagNames);
     await db.todoTag.createMany({
       data: tags.map((tag) => ({ todoId: todo.id, tagId: tag.id })),
     });
@@ -127,6 +146,9 @@ export async function createTodoAction(input: TodoInput) {
 }
 
 export async function updateTodoAction(id: string, input: Partial<TodoInput>) {
+  const { workspaceId } = await requireModuleAccess("todos");
+  await assertTodoInWorkspace(id, workspaceId);
+
   const todo = await db.todo.update({
     where: { id },
     data: {
@@ -155,12 +177,18 @@ export async function updateTodoAction(id: string, input: Partial<TodoInput>) {
 
   if (input.tagNames) {
     await db.todoTag.deleteMany({ where: { todoId: id } });
-    const tags = await upsertTags(input.tagNames);
+    const tags = await upsertTags(workspaceId, input.tagNames);
     if (tags.length) {
       await db.todoTag.createMany({
         data: tags.map((tag) => ({ todoId: id, tagId: tag.id })),
       });
     }
+  }
+
+  if (input.addImagePaths?.length) {
+    await db.todoImage.createMany({
+      data: input.addImagePaths.map((path) => ({ todoId: id, path })),
+    });
   }
 
   revalidatePath("/");
@@ -172,12 +200,15 @@ export async function updateTodoAction(id: string, input: Partial<TodoInput>) {
 }
 
 export async function deleteTodoAction(id: string) {
+  const { workspaceId } = await requireModuleAccess("todos");
+  await assertTodoInWorkspace(id, workspaceId);
+
   const images = await db.todoImage.findMany({
     where: { todoId: id },
     select: { path: true },
   });
   const todo = await db.todo.delete({ where: { id } });
-  await deleteTodoImageFiles(images.map((image) => image.path));
+  await deleteUploadImageFiles(images.map((image) => image.path));
   revalidatePath("/");
   revalidatePath("/todos");
   if (todo.cityId) {

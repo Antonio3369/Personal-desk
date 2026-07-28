@@ -7,7 +7,10 @@ import {
   getTodoEditOptionsAction,
   updateTodoFromFormAction,
 } from "@/app/actions/todos";
+import { AttachmentImageGallery } from "@/components/attachment-image-gallery";
+import { ImageUploadField, getImageFilesFromFormData } from "@/components/image-upload-field";
 import { TagPicker } from "@/components/tag-picker";
+import { uploadImagesFromForm, formDataForServerAction } from "@/lib/upload-images-client";
 import type { TodoItem } from "@/components/todo-list";
 import {
   TODO_NATURE,
@@ -66,8 +69,9 @@ export function TodoEditForm({
 
   function handleSubmit(formData: FormData) {
     const content = String(formData.get("content") ?? "").trim();
-    if (!content && !todo.images?.length) {
-      setError("请填写内容");
+    const imageFiles = getImageFilesFromFormData(formData);
+    if (!content && !todo.images?.length && !imageFiles.length) {
+      setError("请填写内容或添加图片");
       return;
     }
 
@@ -77,7 +81,10 @@ export function TodoEditForm({
 
     startTransition(async () => {
       try {
-        await updateTodoFromFormAction(todo.id, formData);
+        const imagePaths = await uploadImagesFromForm("todos", formData);
+        const actionData = formDataForServerAction(formData);
+        actionData.set("imagePaths", JSON.stringify(imagePaths));
+        await updateTodoFromFormAction(todo.id, actionData);
         onClose();
         router.refresh();
       } catch (submitError) {
@@ -137,6 +144,20 @@ export function TodoEditForm({
               className="w-full rounded-xl border border-stone-200 px-3 py-2.5 text-sm"
             />
           </Field>
+
+          {todo.images?.length ? (
+            <div>
+              <p className="mb-2 text-sm font-medium text-stone-700">已有附图</p>
+              <AttachmentImageGallery images={todo.images} compact />
+            </div>
+          ) : null}
+
+          <div>
+            <label className="mb-2 block text-sm font-medium text-stone-700">
+              添加附图
+            </label>
+            <ImageUploadField />
+          </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="进度">

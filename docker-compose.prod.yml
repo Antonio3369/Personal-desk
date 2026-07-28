@@ -18,7 +18,7 @@ services:
       APP_PASSWORD: ${APP_PASSWORD:-desk2026}
     volumes:
       - desk_sqlite:/app/data
-      - desk_uploads:/app/public/uploads/todos
+      - desk_uploads:/app/public/uploads
 
 volumes:
   desk_sqlite:

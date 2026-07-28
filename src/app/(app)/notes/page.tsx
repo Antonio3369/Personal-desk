@@ -46,7 +46,10 @@ export default async function NotesPage({
       />
       <Suspense fallback={<div className="text-sm text-stone-500">加载中...</div>}>
         <NotesWorkspace
-          notes={notes}
+          notes={notes.map((note) => ({
+            ...note,
+            updatedAt: note.updatedAt.toISOString(),
+          }))}
           activeType={type}
           activeTag={params.tag}
           activeReadStatus={params.readStatus}

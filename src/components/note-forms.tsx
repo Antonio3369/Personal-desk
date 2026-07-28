@@ -2,8 +2,10 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { createNoteAction } from "@/app/actions/notes";
+import { createNoteFromFormAction } from "@/app/actions/notes";
+import { ImageUploadField } from "@/components/image-upload-field";
 import { TagPicker } from "@/components/tag-picker";
+import { uploadImagesFromForm, formDataForServerAction } from "@/lib/upload-images-client";
 import {
   NOTE_PLATFORMS,
   NOTE_TYPES,
@@ -35,6 +37,7 @@ export function NoteCreateForm({
   const [platform, setPlatform] = useState<string>("other");
   const [linkInput, setLinkInput] = useState("");
   const [linkHint, setLinkHint] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const tags = tagOptions;
 
@@ -63,42 +66,28 @@ export function NoteCreateForm({
   }
 
   function handleSubmit(formData: FormData) {
-    startTransition(async () => {
-      const rawLink = String(formData.get("link") ?? "");
-      const normalized = normalizeLearningLink(rawLink);
-      if (type === "learning" && !normalized) {
-        alert("请粘贴有效链接，或完整的抖音/公众号分享文案。");
-        return;
-      }
+    setError(null);
+    formData.set("type", type);
+    formData.set("tagNames", JSON.stringify(selectedTags));
 
-      await createNoteAction({
-        type,
-        title: String(formData.get("title") ?? "") || null,
-        content: String(formData.get("content") ?? "") || null,
-        link: normalized?.link ?? (rawLink.trim() || null),
-        platform:
-          type === "learning"
-            ? (String(formData.get("platform") ?? platform) as
-                | "wechat"
-                | "douyin"
-                | "youtube"
-                | "book"
-                | "course"
-                | "other")
-            : null,
-        highlight: String(formData.get("highlight") ?? "") || null,
-        summary: String(formData.get("summary") ?? "") || null,
-        cityId: String(formData.get("cityId") ?? "") || null,
-        contactId: String(formData.get("contactId") ?? "") || null,
-        tagNames: selectedTags,
-      });
-      setSelectedTags([]);
-      setLinkInput("");
-      setLinkHint(null);
-      onSuccess?.();
-      router.refresh();
-      if (compact) {
-        router.push(`/notes?type=${type}`);
+    startTransition(async () => {
+      try {
+        const imagePaths = await uploadImagesFromForm("notes", formData);
+        const actionData = formDataForServerAction(formData);
+        actionData.set("imagePaths", JSON.stringify(imagePaths));
+        await createNoteFromFormAction(actionData);
+        setSelectedTags([]);
+        setLinkInput("");
+        setLinkHint(null);
+        onSuccess?.();
+        router.refresh();
+        if (compact) {
+          router.push(`/notes?type=${type}`);
+        }
+      } catch (submitError) {
+        setError(
+          submitError instanceof Error ? submitError.message : "保存失败，请重试",
+        );
       }
     });
   }
@@ -113,13 +102,12 @@ export function NoteCreateForm({
     >
       {type === "learning" ? (
         <>
-          <Field label="链接" required>
+          <Field label="链接">
             <input
               name="link"
-              required
               type="text"
               value={linkInput}
-              placeholder="粘贴链接，或抖音/公众号整段分享文案"
+              placeholder="粘贴链接，或抖音/公众号整段分享文案（可只附图）"
               onChange={(event) => applyLinkInput(event.target.value)}
               onPaste={(event) => {
                 event.preventDefault();
@@ -181,7 +169,6 @@ export function NoteCreateForm({
           <Field label="标题">
             <input
               name="title"
-              required
               placeholder={
                 type === "opinion" ? "例如：跨城管理的三个观察" : "例如：待办标签交互想法"
               }
@@ -191,9 +178,8 @@ export function NoteCreateForm({
           <Field label="内容">
             <textarea
               name="content"
-              required
               rows={compact ? 4 : 6}
-              placeholder="写下你的观点或灵感"
+              placeholder="写下你的观点或灵感（说不清时可只附图）"
               className="w-full rounded-xl border border-stone-200 px-3 py-2.5 text-sm"
             />
           </Field>
@@ -235,6 +221,13 @@ export function NoteCreateForm({
 
       <div>
         <label className="mb-2 block text-sm font-medium text-stone-700">
+          附图
+        </label>
+        <ImageUploadField />
+      </div>
+
+      <div>
+        <label className="mb-2 block text-sm font-medium text-stone-700">
           标签
         </label>
         <TagPicker
@@ -243,6 +236,8 @@ export function NoteCreateForm({
           onChange={setSelectedTags}
         />
       </div>
+
+      {error ? <p className="text-sm text-red-600">{error}</p> : null}
 
       <button
         type="submit"

@@ -50,10 +50,14 @@ next-env.d.ts
 /prisma/dev.db-journal
 /prisma/*.db
 /prisma/*.db-journal
+*.db.bak*
+dev.db.bak*
 
-# uploaded todo images
+# uploaded images
 /public/uploads/todos/*
 !/public/uploads/todos/.gitkeep
+/public/uploads/notes/*
+!/public/uploads/notes/.gitkeep
 
 # local deploy secrets
 /deploy/*.local.sh

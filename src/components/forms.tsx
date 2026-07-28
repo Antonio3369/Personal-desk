@@ -2,10 +2,11 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { ImageUploadField } from "@/components/image-upload-field";
+import { ImageUploadField, getImageFilesFromFormData } from "@/components/image-upload-field";
 import { RelationTypeField } from "@/components/relation-type-field";
 import { TagPicker } from "@/components/tag-picker";
 import { createTodoFromFormAction } from "@/app/actions/todos";
+import { uploadImagesFromForm, formDataForServerAction } from "@/lib/upload-images-client";
 import {
   TODO_NATURE,
   TODO_PROGRESS,
@@ -30,11 +31,11 @@ export function QuickCaptureForm({
   const [pending, startTransition] = useTransition();
   const [scope, setScope] = useState<TodoScope>(defaultScope);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
-  const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   function handleSubmit(formData: FormData) {
     const content = String(formData.get("content") ?? "").trim();
+    const imageFiles = getImageFilesFromFormData(formData);
     if (!content && !imageFiles.length) {
       setError("请填写内容或添加图片");
       return;
@@ -43,13 +44,13 @@ export function QuickCaptureForm({
     setError(null);
     formData.set("scope", scope);
     formData.set("tagNames", JSON.stringify(selectedTags));
-    for (const file of imageFiles) {
-      formData.append("images", file);
-    }
 
     startTransition(async () => {
       try {
-        await createTodoFromFormAction(formData);
+        const imagePaths = await uploadImagesFromForm("todos", formData);
+        const actionData = formDataForServerAction(formData);
+        actionData.set("imagePaths", JSON.stringify(imagePaths));
+        await createTodoFromFormAction(actionData);
         router.push(
           scope === "personal" ? "/todos?view=personal" : "/todos?view=active",
         );
@@ -107,7 +108,7 @@ export function QuickCaptureForm({
         <label className="mb-2 block text-sm font-medium text-stone-700">
           附图
         </label>
-        <ImageUploadField onChange={setImageFiles} />
+        <ImageUploadField />
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">

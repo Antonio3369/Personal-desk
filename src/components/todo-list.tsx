@@ -5,6 +5,7 @@ import { useState, useTransition } from "react";
 import { TODO_PROGRESS, TODO_SCOPES, type TodoProgress } from "@/lib/constants";
 import { cn, formatDate, formatDateTime, completionTimestamp } from "@/lib/utils";
 import { deleteTodoAction, toggleTodoDoneAction } from "@/app/actions/todos";
+import { AttachmentImageGallery } from "@/components/attachment-image-gallery";
 import { TodoEditForm } from "@/components/todo-edit-form";
 import { Badge } from "@/components/ui-shell";
 import { Check, Pencil, Trash2 } from "lucide-react";
@@ -119,24 +120,7 @@ function TodoCard({
             {todo.content}
           </p>
           {todo.images?.length ? (
-            <div className="mt-3 flex flex-wrap gap-2">
-              {todo.images.map((image) => (
-                <a
-                  key={image.id}
-                  href={image.path}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="block overflow-hidden rounded-xl border border-stone-200 bg-stone-100"
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={image.path}
-                    alt="待办附图"
-                    className="h-20 w-20 object-cover transition hover:opacity-90"
-                  />
-                </a>
-              ))}
-            </div>
+            <AttachmentImageGallery images={todo.images} compact />
           ) : null}
           <div className="mt-3 flex flex-wrap gap-2">
             <Badge tone={todo.scope === "personal" ? "muted" : "default"}>

@@ -13,18 +13,34 @@ import {
   Users,
   type LucideIcon,
 } from "lucide-react";
+import { filterNavModules } from "@/lib/module-access";
+import { MODULE_LABELS, type ModuleKey } from "@/lib/modules";
 import { cn } from "@/lib/utils";
 
-const navItems: { href: string; label: string; icon: LucideIcon }[] = [
-  { href: "/", label: "首页", icon: Home },
-  { href: "/todos", label: "待办", icon: CheckSquare },
-  { href: "/cities", label: "城市", icon: Building2 },
-  { href: "/contacts", label: "人脉", icon: Users },
-  { href: "/notes", label: "笔记", icon: BookOpen },
+const NAV_DEFS: Array<{
+  href: string;
+  moduleKey: ModuleKey;
+  icon: LucideIcon;
+  primary?: boolean;
+}> = [
+  { href: "/", moduleKey: "dashboard", icon: Home },
+  { href: "/todos", moduleKey: "todos", icon: CheckSquare },
+  { href: "/notes", moduleKey: "notes", icon: BookOpen, primary: true },
+  { href: "/cities", moduleKey: "cities", icon: Building2 },
+  { href: "/contacts", moduleKey: "contacts", icon: Users },
 ];
 
-export function Sidebar() {
+export function Sidebar({
+  displayName,
+  enabledModules,
+}: {
+  displayName: string;
+  enabledModules: ModuleKey[];
+}) {
   const pathname = usePathname();
+  const navItems = filterNavModules(NAV_DEFS, enabledModules);
+  const showCapture =
+    enabledModules.includes("todos") || enabledModules.includes("notes");
 
   return (
     <aside className="hidden lg:flex lg:w-64 lg:flex-col lg:border-r lg:border-stone-200 lg:bg-stone-50">
@@ -32,7 +48,7 @@ export function Sidebar() {
         <p className="text-xs font-medium uppercase tracking-[0.2em] text-stone-400">
           Personal Desk
         </p>
-        <h1 className="mt-1 text-xl font-semibold text-stone-900">Antonio</h1>
+        <h1 className="mt-1 text-xl font-semibold text-stone-900">{displayName}</h1>
       </div>
       <nav className="flex-1 space-y-0.5 px-3 py-4">
         {navItems.map((item) => {
@@ -58,43 +74,40 @@ export function Sidebar() {
                   active ? "text-white/90" : "text-stone-400",
                 )}
               />
-              {item.label}
+              {MODULE_LABELS[item.moduleKey]}
             </Link>
           );
         })}
       </nav>
-      <div className="border-t border-stone-200 px-3 py-4">
-        <Link
-          href="/capture"
-          className="flex items-center justify-center gap-2 rounded-lg border border-stone-300 bg-white px-3 py-2.5 text-sm font-medium text-stone-800 transition hover:bg-stone-50"
-        >
-          <Plus className="h-4 w-4 stroke-[1.5]" />
-          快速记录
-        </Link>
-      </div>
+      {showCapture ? (
+        <div className="border-t border-stone-200 px-3 py-4">
+          <Link
+            href="/capture"
+            className="flex items-center justify-center gap-2 rounded-lg border border-stone-300 bg-white px-3 py-2.5 text-sm font-medium text-stone-800 transition hover:bg-stone-50"
+          >
+            <Plus className="h-4 w-4 stroke-[1.5]" />
+            快速记录
+          </Link>
+        </div>
+      ) : null}
     </aside>
   );
 }
 
-export function MobileNav() {
+export function MobileNav({ enabledModules }: { enabledModules: ModuleKey[] }) {
   const pathname = usePathname();
+  const items = filterNavModules(NAV_DEFS, enabledModules);
 
-  const items: Array<{
-    href: string;
-    label: string;
-    icon: LucideIcon;
-    primary?: boolean;
-  }> = [
-    { href: "/", label: "首页", icon: Home },
-    { href: "/todos", label: "待办", icon: CheckSquare },
-    { href: "/notes", label: "笔记", icon: BookOpen, primary: true },
-    { href: "/cities", label: "城市", icon: Building2 },
-    { href: "/contacts", label: "人脉", icon: Users },
-  ];
+  if (!items.length) {
+    return null;
+  }
 
   return (
     <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-stone-200 bg-white/95 backdrop-blur lg:hidden">
-      <div className="mx-auto grid max-w-lg grid-cols-5 px-2 py-2">
+      <div
+        className="mx-auto grid px-2 py-2"
+        style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }}
+      >
         {items.map((item) => {
           const active =
             item.href === "/"
@@ -126,7 +139,7 @@ export function MobileNav() {
               >
                 <Icon className="h-4 w-4 stroke-[1.5]" />
               </span>
-              {item.label}
+              {MODULE_LABELS[item.moduleKey]}
             </Link>
           );
         })}

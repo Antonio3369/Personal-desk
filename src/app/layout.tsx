@@ -9,7 +9,7 @@ const libreBodoni = Libre_Bodoni({
 });
 
 export const metadata: Metadata = {
-  title: "Antonio",
+  title: "Personal Desk",
   description: "个人知识与业务工作台",
 };
 

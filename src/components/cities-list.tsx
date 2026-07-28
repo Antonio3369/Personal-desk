@@ -10,7 +10,26 @@ type CityItem = {
   activityScore: number;
 };
 
-export function CitiesList({ cities }: { cities: CityItem[] }) {
+export function CitiesList({
+  cities,
+  canCreate = false,
+}: {
+  cities: CityItem[];
+  canCreate?: boolean;
+}) {
+  if (!cities.length) {
+    return (
+      <div className="rounded-2xl border border-dashed border-stone-200 bg-stone-50 px-6 py-12 text-center">
+        <p className="text-base font-medium text-stone-900">还没有城市</p>
+        <p className="mt-2 text-sm text-stone-500">
+          {canCreate
+            ? "添加第一个城市，开始记录出差简报和待办。"
+            : "当前账号暂无新增城市权限，请联系管理员开通。"}
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-3">
       <p className="text-sm text-stone-500">
@@ -73,11 +92,16 @@ export function CitiesList({ cities }: { cities: CityItem[] }) {
   );
 }
 
-export function CitiesPageHeader() {
+export function CitiesPageHeader({
+  action,
+}: {
+  action?: React.ReactNode;
+}) {
   return (
     <SectionHeader
       title="城市"
       description="自动按待办和问题的多少排序，优先显示最需要你关注的城市。"
+      action={action}
     />
   );
 }

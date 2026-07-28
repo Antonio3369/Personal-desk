@@ -1,10 +1,12 @@
 import { db } from "@/lib/db";
+import { getWorkspaceId } from "@/lib/workspace-context";
 import { isDueToday, isDueThisWeek, isWithinDays } from "@/lib/utils";
 
 const noteInclude = {
   city: { select: { id: true, name: true } },
   contact: { select: { id: true, name: true } },
   tags: { include: { tag: true } },
+  images: { orderBy: { createdAt: "asc" as const } },
 };
 
 const todoInclude = {
@@ -15,7 +17,10 @@ const todoInclude = {
 };
 
 export async function getCities() {
+  const workspaceId = await getWorkspaceId();
+
   const cities = await db.city.findMany({
+    where: { workspaceId },
     include: {
       leaderContact: { select: { id: true, name: true } },
       issues: {
@@ -54,12 +59,18 @@ async function migrateLegacyCityIssues(cityId: string) {
 
   const creates = [];
   if (city.teamIssues?.trim()) {
-    for (const line of city.teamIssues.split("\n").map((s) => s.trim()).filter(Boolean)) {
+    for (const line of city.teamIssues
+      .split("\n")
+      .map((s) => s.trim())
+      .filter(Boolean)) {
       creates.push({ cityId, type: "team", content: line });
     }
   }
   if (city.businessIssues?.trim()) {
-    for (const line of city.businessIssues.split("\n").map((s) => s.trim()).filter(Boolean)) {
+    for (const line of city.businessIssues
+      .split("\n")
+      .map((s) => s.trim())
+      .filter(Boolean)) {
       creates.push({ cityId, type: "business", content: line });
     }
   }
@@ -74,10 +85,11 @@ async function migrateLegacyCityIssues(cityId: string) {
 }
 
 export async function getCityById(id: string) {
+  const workspaceId = await getWorkspaceId();
   await migrateLegacyCityIssues(id);
 
-  return db.city.findUnique({
-    where: { id },
+  return db.city.findFirst({
+    where: { id, workspaceId },
     include: {
       leaderContact: true,
       issues: {
@@ -100,7 +112,10 @@ export async function getCityById(id: string) {
 }
 
 export async function getContacts() {
+  const workspaceId = await getWorkspaceId();
+
   return db.contact.findMany({
+    where: { workspaceId },
     orderBy: { updatedAt: "desc" },
     include: {
       city: { select: { id: true, name: true } },
@@ -119,13 +134,16 @@ export async function getTodos(filters?: {
   view?: string;
   cityId?: string;
 }) {
+  const workspaceId = await getWorkspaceId();
+
   const where: {
+    workspaceId: string;
     scope?: string;
     cityId?: string | null;
     progress?: { not: string } | string;
     followUpDate?: { lte: Date };
     OR?: Array<Record<string, unknown>>;
-  } = {};
+  } = { workspaceId };
 
   if (filters?.scope) {
     where.scope = filters.scope;
@@ -183,9 +201,11 @@ export async function getTodos(filters?: {
 }
 
 export async function getContactsToReach() {
+  const workspaceId = await getWorkspaceId();
   const today = new Date();
   const todos = await db.todo.findMany({
     where: {
+      workspaceId,
       progress: { in: ["waiting", "in_progress"] },
       contactId: { not: null },
     },
@@ -209,8 +229,10 @@ export async function getContactsToReach() {
 }
 
 export async function getRecentActiveTodos(limit = 10) {
+  const workspaceId = await getWorkspaceId();
+
   return db.todo.findMany({
-    where: { progress: { not: "done" } },
+    where: { workspaceId, progress: { not: "done" } },
     include: todoInclude,
     orderBy: { updatedAt: "desc" },
     take: limit,
@@ -218,8 +240,10 @@ export async function getRecentActiveTodos(limit = 10) {
 }
 
 export async function getRecentlyCompletedTodos(limit = 10) {
+  const workspaceId = await getWorkspaceId();
+
   const todos = await db.todo.findMany({
-    where: { progress: "done" },
+    where: { workspaceId, progress: "done" },
     include: todoInclude,
     orderBy: [{ completedAt: "desc" }, { updatedAt: "desc" }],
     take: limit * 2,
@@ -233,6 +257,14 @@ export async function getRecentlyCompletedTodos(limit = 10) {
     .slice(0, limit);
 }
 
+export async function getCompletedTodosCount() {
+  const workspaceId = await getWorkspaceId();
+
+  return db.todo.count({
+    where: { workspaceId, progress: "done" },
+  });
+}
+
 export async function getDashboardData() {
   const [
     todayTodos,
@@ -241,6 +273,7 @@ export async function getDashboardData() {
     globalTodos,
     contactsToReach,
     recentlyCompleted,
+    completedCount,
   ] = await Promise.all([
     getTodos({ view: "today" }),
     getRecentActiveTodos(8),
@@ -250,6 +283,7 @@ export async function getDashboardData() {
     getTodos({ view: "global" }),
     getContactsToReach(),
     getRecentlyCompletedTodos(5),
+    getCompletedTodosCount(),
   ]);
 
   return {
@@ -259,30 +293,53 @@ export async function getDashboardData() {
     globalTodos,
     contactsToReach,
     recentlyCompleted,
+    completedCount,
   };
 }
 
 export async function getCalendarTodos() {
+  const workspaceId = await getWorkspaceId();
+
   return db.todo.findMany({
     where: {
-      followUpDate: { not: null },
-      progress: { not: "done" },
+      workspaceId,
+      OR: [
+        {
+          progress: { not: "done" },
+          followUpDate: { not: null },
+        },
+        {
+          progress: "done",
+        },
+      ],
     },
     include: {
       city: { select: { name: true } },
     },
-    orderBy: { followUpDate: "asc" },
+    orderBy: [
+      { followUpDate: "asc" },
+      { completedAt: "desc" },
+      { updatedAt: "desc" },
+    ],
   });
 }
 
 export async function getFormOptions() {
+  const workspaceId = await getWorkspaceId();
+
   const [cities, contacts, tags] = await Promise.all([
-    db.city.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
+    db.city.findMany({
+      where: { workspaceId },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true },
+    }),
     db.contact.findMany({
+      where: { workspaceId },
       orderBy: { name: "asc" },
       select: { id: true, name: true },
     }),
     db.tag.findMany({
+      where: { workspaceId },
       orderBy: [{ usageCount: "desc" }, { name: "asc" }],
       select: { name: true },
     }),
@@ -292,7 +349,10 @@ export async function getFormOptions() {
 }
 
 export async function getTagsWithStats() {
+  const workspaceId = await getWorkspaceId();
+
   const tags = await db.tag.findMany({
+    where: { workspaceId },
     orderBy: [{ usageCount: "desc" }, { name: "asc" }],
     include: {
       _count: {
@@ -315,11 +375,14 @@ export async function getNotes(filters?: {
   tag?: string;
   readStatus?: string;
 }) {
+  const workspaceId = await getWorkspaceId();
+
   const where: {
+    workspaceId: string;
     type?: string;
     readStatus?: string;
-    tags?: { some: { tag: { name: string } } };
-  } = {};
+    tags?: { some: { tag: { name: string; workspaceId: string } } };
+  } = { workspaceId };
 
   if (filters?.type) {
     where.type = filters.type;
@@ -330,7 +393,9 @@ export async function getNotes(filters?: {
   }
 
   if (filters?.tag) {
-    where.tags = { some: { tag: { name: filters.tag } } };
+    where.tags = {
+      some: { tag: { name: filters.tag, workspaceId } },
+    };
   }
 
   return db.note.findMany({

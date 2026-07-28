@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ImagePlus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -12,12 +12,23 @@ export function ImageUploadField({
   className,
 }: {
   maxFiles?: number;
-  onChange: (files: File[]) => void;
+  onChange?: (files: File[]) => void;
   className?: string;
 }) {
-  const inputRef = useRef<HTMLInputElement>(null);
+  const pickerRef = useRef<HTMLInputElement>(null);
+  const submitInputRef = useRef<HTMLInputElement>(null);
   const [files, setFiles] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
+
+  useEffect(() => {
+    const dt = new DataTransfer();
+    for (const file of files) {
+      dt.items.add(file);
+    }
+    if (submitInputRef.current) {
+      submitInputRef.current.files = dt.files;
+    }
+  }, [files]);
 
   function updateFiles(nextFiles: File[]) {
     for (const url of previews) {
@@ -25,7 +36,7 @@ export function ImageUploadField({
     }
     setFiles(nextFiles);
     setPreviews(nextFiles.map((file) => URL.createObjectURL(file)));
-    onChange(nextFiles);
+    onChange?.(nextFiles);
   }
 
   function addFiles(nextFiles: FileList | null) {
@@ -34,7 +45,9 @@ export function ImageUploadField({
     const merged = [...files];
     for (const file of Array.from(nextFiles)) {
       if (merged.length >= maxFiles) break;
-      if (!file.type.startsWith("image/")) continue;
+      if (!file.type.startsWith("image/") && !file.name.match(/\.(heic|heif)$/i)) {
+        continue;
+      }
       merged.push(file);
     }
     updateFiles(merged);
@@ -42,17 +55,28 @@ export function ImageUploadField({
 
   function removeFile(index: number) {
     updateFiles(files.filter((_, i) => i !== index));
-    if (inputRef.current) {
-      inputRef.current.value = "";
+    if (pickerRef.current) {
+      pickerRef.current.value = "";
     }
   }
 
   return (
     <div className={cn("space-y-3", className)}>
+      <input
+        ref={submitInputRef}
+        type="file"
+        name="images"
+        multiple
+        className="hidden"
+        tabIndex={-1}
+        aria-hidden
+        onChange={() => {}}
+      />
+
       <div className="flex flex-wrap items-center gap-3">
         <button
           type="button"
-          onClick={() => inputRef.current?.click()}
+          onClick={() => pickerRef.current?.click()}
           disabled={files.length >= maxFiles}
           className="inline-flex items-center gap-2 rounded-xl border border-dashed border-stone-300 bg-stone-50 px-3 py-2 text-sm text-stone-600 transition hover:border-stone-400 hover:bg-stone-100 disabled:cursor-not-allowed disabled:opacity-50"
         >
@@ -65,7 +89,7 @@ export function ImageUploadField({
       </div>
 
       <input
-        ref={inputRef}
+        ref={pickerRef}
         type="file"
         accept="image/*"
         multiple
@@ -83,7 +107,7 @@ export function ImageUploadField({
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={preview}
-                alt={files[index]?.name ?? "待办图片预览"}
+                alt={files[index]?.name ?? "图片预览"}
                 className="h-full w-full object-cover"
               />
               <button
@@ -100,4 +124,10 @@ export function ImageUploadField({
       ) : null}
     </div>
   );
+}
+
+export function getImageFilesFromFormData(formData: FormData) {
+  return formData
+    .getAll("images")
+    .filter((item): item is File => item instanceof File && item.size > 0);
 }

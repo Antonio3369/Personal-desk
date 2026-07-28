@@ -1,6 +1,8 @@
-# Antonio (Personal Desk)
+# 个人工作台 (Personal Desk)
 
 个人知识与业务工作台：手机快记，电脑整理。
+
+> 完整项目梳理见 **[Leadspace.Desk.md](./Leadspace.Desk.md)**
 
 ## 本地运行
 
@@ -13,7 +15,7 @@ npm run dev
 
 打开 [http://localhost:6789](http://localhost:6789)
 
-**默认密码**：`desk2026`（`.env` 里 `APP_PASSWORD`）
+**登录**：手机号 + 密码（多用户；详见 [Leadspace.Desk.md](./Leadspace.Desk.md) §9 测试账号）
 
 ## 环境变量
 

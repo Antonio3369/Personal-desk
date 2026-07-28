@@ -7,9 +7,85 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model User {
+  id           String    @id @default(cuid())
+  phone        String    @unique
+  phoneRegion  String
+  displayName  String
+  passwordHash String
+  role         String    @default("user")
+  status       String    @default("active")
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  lastLoginAt  DateTime?
+
+  membership WorkspaceMember?
+  invitesCreated Invite[] @relation("InviteCreatedBy")
+  invitesUsed    Invite[] @relation("InviteUsedBy")
+}
+
+model Workspace {
+  id        String   @id @default(cuid())
+  status    String   @default("active")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  member   WorkspaceMember?
+  modules  WorkspaceModule[]
+  invites  Invite[]
+  cities   City[]
+  contacts Contact[]
+  todos    Todo[]
+  notes    Note[]
+  tags     Tag[]
+}
+
+model WorkspaceMember {
+  id          String   @id @default(cuid())
+  workspaceId String   @unique
+  userId      String   @unique
+  role        String   @default("owner")
+  createdAt   DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Invite {
+  id           String    @id @default(cuid())
+  token        String    @unique
+  phone        String
+  phoneRegion  String
+  workspaceId  String
+  createdById  String
+  expiresAt    DateTime
+  usedAt       DateTime?
+  usedByUserId String?
+  createdAt    DateTime  @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdBy User      @relation("InviteCreatedBy", fields: [createdById], references: [id])
+  usedBy    User?     @relation("InviteUsedBy", fields: [usedByUserId], references: [id])
+}
+
+model WorkspaceModule {
+  id          String   @id @default(cuid())
+  workspaceId String
+  moduleKey   String
+  enabled     Boolean  @default(true)
+  permissions String   @default("[]")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, moduleKey])
+}
+
 model City {
   id              String      @id @default(cuid())
-  name            String      @unique
+  workspaceId     String?
+  name            String
   sortOrder       Int         @default(0)
   teamIssues      String?
   businessIssues  String?
@@ -19,57 +95,64 @@ model City {
   leaderContact   Contact?    @relation("CityLeader", fields: [leaderContactId], references: [id])
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
+  workspace       Workspace?  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   todos           Todo[]
   contacts        Contact[]   @relation("ContactCity")
   notes_rel       Note[]
   issues          CityIssue[]
+
+  @@unique([workspaceId, name])
 }
 
 model CityIssue {
-  id              String    @id @default(cuid())
-  cityId          String
-  city            City      @relation(fields: [cityId], references: [id], onDelete: Cascade)
-  type            String
-  content         String
-  status          String    @default("open")
-  resolveOutcome  String?
-  createdAt       DateTime  @default(now())
-  resolvedAt      DateTime?
+  id             String    @id @default(cuid())
+  cityId         String
+  city           City      @relation(fields: [cityId], references: [id], onDelete: Cascade)
+  type           String
+  content        String
+  status         String    @default("open")
+  resolveOutcome String?
+  createdAt      DateTime  @default(now())
+  resolvedAt     DateTime?
 }
 
 model Contact {
-  id                  String    @id @default(cuid())
-  name                String
-  role                String?
-  organization        String?
-  relationType        String?
-  cityId              String?
-  city                City?     @relation("ContactCity", fields: [cityId], references: [id])
-  notes               String?
-  lastInteractionAt   DateTime?
-  interactionSummary  String?
-  createdAt           DateTime  @default(now())
-  updatedAt           DateTime  @updatedAt
-  todos               Todo[]
-  ledCities           City[]    @relation("CityLeader")
-  notes_rel           Note[]
+  id                 String    @id @default(cuid())
+  workspaceId        String?
+  name               String
+  role               String?
+  organization       String?
+  relationType       String?
+  cityId             String?
+  city               City?     @relation("ContactCity", fields: [cityId], references: [id])
+  notes              String?
+  lastInteractionAt  DateTime?
+  interactionSummary String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  workspace          Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  todos              Todo[]
+  ledCities          City[]    @relation("CityLeader")
+  notes_rel          Note[]
 }
 
 model Todo {
-  id           String    @id @default(cuid())
+  id           String      @id @default(cuid())
+  workspaceId  String?
   content      String
-  scope        String    @default("work")
+  scope        String      @default("work")
   nature       String?
-  progress     String    @default("not_started")
+  progress     String      @default("not_started")
   followUpDate DateTime?
   source       String?
   cityId       String?
-  city         City?     @relation(fields: [cityId], references: [id])
+  city         City?       @relation(fields: [cityId], references: [id])
   contactId    String?
-  contact      Contact?  @relation(fields: [contactId], references: [id])
+  contact      Contact?    @relation(fields: [contactId], references: [id])
   completedAt  DateTime?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  workspace    Workspace?  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   tags         TodoTag[]
   images       TodoImage[]
 }
@@ -83,12 +166,16 @@ model TodoImage {
 }
 
 model Tag {
-  id         String    @id @default(cuid())
-  name       String    @unique
-  usageCount Int       @default(0)
-  createdAt  DateTime  @default(now())
-  todoTags   TodoTag[]
-  noteTags   NoteTag[]
+  id          String    @id @default(cuid())
+  workspaceId String?
+  name        String
+  usageCount  Int       @default(0)
+  createdAt   DateTime  @default(now())
+  workspace   Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  todoTags    TodoTag[]
+  noteTags    NoteTag[]
+
+  @@unique([workspaceId, name])
 }
 
 model TodoTag {
@@ -101,23 +188,34 @@ model TodoTag {
 }
 
 model Note {
-  id         String    @id @default(cuid())
-  type       String
-  title      String?
-  content    String?
-  link       String?
-  platform   String?
-  highlight  String?
-  summary    String?
-  category   String?
-  readStatus String    @default("unread")
-  cityId     String?
-  city       City?     @relation(fields: [cityId], references: [id])
-  contactId  String?
-  contact    Contact?  @relation(fields: [contactId], references: [id])
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
-  tags       NoteTag[]
+  id          String    @id @default(cuid())
+  workspaceId String?
+  type        String
+  title       String?
+  content     String?
+  link        String?
+  platform    String?
+  highlight   String?
+  summary     String?
+  category    String?
+  readStatus  String    @default("unread")
+  cityId      String?
+  city        City?     @relation(fields: [cityId], references: [id])
+  contactId   String?
+  contact     Contact?  @relation(fields: [contactId], references: [id])
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  workspace   Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  tags        NoteTag[]
+  images      NoteImage[]
+}
+
+model NoteImage {
+  id        String   @id @default(cuid())
+  noteId    String
+  note      Note     @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  path      String
+  createdAt DateTime @default(now())
 }
 
 model NoteTag {

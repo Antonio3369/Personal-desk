@@ -7,9 +7,12 @@ import { ExternalLink, Pencil, Trash2, X } from "lucide-react";
 import {
   deleteNoteAction,
   toggleNoteReadAction,
-  updateNoteAction,
+  updateNoteFromFormAction,
 } from "@/app/actions/notes";
+import { AttachmentImageGallery } from "@/components/attachment-image-gallery";
+import { ImageUploadField } from "@/components/image-upload-field";
 import { TagPicker } from "@/components/tag-picker";
+import { uploadImagesFromForm, formDataForServerAction } from "@/lib/upload-images-client";
 import {
   NOTE_PLATFORMS,
   NOTE_TYPES,
@@ -32,6 +35,7 @@ export type NoteItem = {
   city?: { id: string; name: string } | null;
   contact?: { id: string; name: string } | null;
   tags?: { tag: { name: string } }[];
+  images?: { id: string; path: string }[];
   updatedAt: Date | string;
 };
 
@@ -186,6 +190,10 @@ function NoteCard({
         </p>
       ) : null}
 
+      {note.images?.length ? (
+        <AttachmentImageGallery images={note.images} compact />
+      ) : null}
+
       <div className="mt-4 flex flex-wrap items-center gap-2">
         {note.tags?.map(({ tag }) => (
           <Link
@@ -223,28 +231,19 @@ function NoteEditForm({
   const isLearning = note.type === "learning";
 
   function handleSubmit(formData: FormData) {
+    formData.set("tagNames", JSON.stringify(selectedTags));
+
     startTransition(async () => {
-      await updateNoteAction(note.id, {
-        title: String(formData.get("title") ?? "") || null,
-        content: String(formData.get("content") ?? "") || null,
-        link: String(formData.get("link") ?? "") || null,
-        platform: String(formData.get("platform") ?? "") as
-          | "wechat"
-          | "douyin"
-          | "youtube"
-          | "book"
-          | "course"
-          | "other"
-          | null,
-        highlight: String(formData.get("highlight") ?? "") || null,
-        summary: String(formData.get("summary") ?? "") || null,
-        readStatus: String(formData.get("readStatus") ?? "unread") as
-          | "unread"
-          | "read",
-        tagNames: selectedTags,
-      });
-      onClose();
-      router.refresh();
+      try {
+        const imagePaths = await uploadImagesFromForm("notes", formData);
+        const actionData = formDataForServerAction(formData);
+        actionData.set("imagePaths", JSON.stringify(imagePaths));
+        await updateNoteFromFormAction(note.id, actionData);
+        onClose();
+        router.refresh();
+      } catch (submitError) {
+        console.error(submitError);
+      }
     });
   }
 
@@ -260,7 +259,13 @@ function NoteEditForm({
           <X className="h-4 w-4" />
         </button>
       </div>
-      <form action={handleSubmit} className="space-y-4">
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          handleSubmit(new FormData(event.currentTarget));
+        }}
+        className="space-y-4"
+      >
         {isLearning ? (
           <>
             <Field label="链接">
@@ -325,7 +330,6 @@ function NoteEditForm({
             <Field label="标题">
               <input
                 name="title"
-                required
                 defaultValue={note.title ?? ""}
                 className="w-full rounded-xl border border-stone-200 px-3 py-2.5 text-sm"
               />
@@ -333,7 +337,6 @@ function NoteEditForm({
             <Field label="内容">
               <textarea
                 name="content"
-                required
                 rows={5}
                 defaultValue={note.content ?? ""}
                 className="w-full rounded-xl border border-stone-200 px-3 py-2.5 text-sm"
@@ -341,6 +344,20 @@ function NoteEditForm({
             </Field>
           </>
         )}
+
+        {note.images?.length ? (
+          <div>
+            <p className="mb-2 text-sm font-medium text-stone-700">已有附图</p>
+            <AttachmentImageGallery images={note.images} compact />
+          </div>
+        ) : null}
+
+        <div>
+          <label className="mb-2 block text-sm font-medium text-stone-700">
+            添加附图
+          </label>
+          <ImageUploadField />
+        </div>
 
         <div>
           <label className="mb-2 block text-sm font-medium text-stone-700">

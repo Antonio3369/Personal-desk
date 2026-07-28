@@ -1,36 +1,74 @@
 import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
+import type { PhoneRegion } from "@/lib/phone";
 
-const PASSWORD_HASH_KEY = "password_hash";
+export async function hashPassword(password: string) {
+  return bcrypt.hash(password, 10);
+}
 
-async function getStoredPasswordHash() {
-  const setting = await db.appSetting.findUnique({
-    where: { key: PASSWORD_HASH_KEY },
+export async function verifyUserPassword(userId: string, password: string) {
+  const user = await db.user.findUnique({ where: { id: userId } });
+  if (!user || user.status !== "active") {
+    return false;
+  }
+  return bcrypt.compare(password, user.passwordHash);
+}
+
+export async function authenticateByPhone(
+  phone: string,
+  password: string,
+): Promise<
+  | {
+      ok: true;
+      user: {
+        id: string;
+        role: "admin" | "user";
+        displayName: string;
+        workspaceId: string | null;
+      };
+    }
+  | { ok: false; reason: "invalid" | "disabled" }
+> {
+  const user = await db.user.findUnique({
+    where: { phone },
+    include: { membership: true },
   });
-  return setting?.value ?? null;
+
+  if (!user) {
+    return { ok: false, reason: "invalid" };
+  }
+
+  const valid = await bcrypt.compare(password, user.passwordHash);
+  if (!valid) {
+    return { ok: false, reason: "invalid" };
+  }
+
+  if (user.status !== "active") {
+    return { ok: false, reason: "disabled" };
+  }
+
+  await db.user.update({
+    where: { id: user.id },
+    data: { lastLoginAt: new Date() },
+  });
+
+  return {
+    ok: true,
+    user: {
+      id: user.id,
+      role: user.role as "admin" | "user",
+      displayName: user.displayName,
+      workspaceId: user.membership?.workspaceId ?? null,
+    },
+  };
 }
 
-export async function verifyPassword(password: string) {
-  const storedHash = await getStoredPasswordHash();
-  if (storedHash) {
-    return bcrypt.compare(password, storedHash);
-  }
-
-  const envHash = process.env.APP_PASSWORD_HASH;
-  if (envHash) {
-    return bcrypt.compare(password, envHash);
-  }
-
-  const plain = process.env.APP_PASSWORD;
-  if (plain) {
-    return password === plain;
-  }
-
-  throw new Error("APP_PASSWORD or APP_PASSWORD_HASH must be set");
-}
-
-export async function updatePassword(currentPassword: string, nextPassword: string) {
-  const valid = await verifyPassword(currentPassword);
+export async function updateUserPassword(
+  userId: string,
+  currentPassword: string,
+  nextPassword: string,
+) {
+  const valid = await verifyUserPassword(userId, currentPassword);
   if (!valid) {
     return { error: "当前密码不正确" as const };
   }
@@ -43,12 +81,55 @@ export async function updatePassword(currentPassword: string, nextPassword: stri
     return { error: "新密码不能与当前密码相同" as const };
   }
 
-  const hash = await bcrypt.hash(nextPassword, 10);
-  await db.appSetting.upsert({
-    where: { key: PASSWORD_HASH_KEY },
-    update: { value: hash },
-    create: { key: PASSWORD_HASH_KEY, value: hash },
+  const passwordHash = await hashPassword(nextPassword);
+  await db.user.update({
+    where: { id: userId },
+    data: { passwordHash },
   });
 
   return { success: true as const };
+}
+
+export async function createUserWithWorkspace(input: {
+  phone: string;
+  phoneRegion: PhoneRegion;
+  displayName: string;
+  password: string;
+  role?: "admin" | "user";
+}) {
+  const passwordHash = await hashPassword(input.password);
+  const role = input.role ?? "user";
+
+  if (role === "admin") {
+    return db.user.create({
+      data: {
+        phone: input.phone,
+        phoneRegion: input.phoneRegion,
+        displayName: input.displayName,
+        passwordHash,
+        role: "admin",
+      },
+    });
+  }
+
+  return db.user.create({
+    data: {
+      phone: input.phone,
+      phoneRegion: input.phoneRegion,
+      displayName: input.displayName,
+      passwordHash,
+      role: "user",
+      membership: {
+        create: {
+          role: "owner",
+          workspace: {
+            create: {},
+          },
+        },
+      },
+    },
+    include: {
+      membership: true,
+    },
+  });
 }

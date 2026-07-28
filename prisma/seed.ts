@@ -4,17 +4,30 @@ import { CITIES } from "../src/lib/constants";
 const prisma = new PrismaClient();
 
 async function main() {
+  const member = await prisma.workspaceMember.findFirst({
+    include: { workspace: true },
+  });
+
+  if (!member) {
+    console.log("No workspace found. Run db:migrate-phase1 first.");
+    return;
+  }
+
+  const workspaceId = member.workspaceId;
+
   for (let i = 0; i < CITIES.length; i++) {
     const name = CITIES[i];
     await prisma.city.upsert({
-      where: { name },
+      where: { workspaceId_name: { workspaceId, name } },
       update: {},
-      create: { name, sortOrder: i },
+      create: { workspaceId, name, sortOrder: i },
     });
   }
 
-  // 为已有城市补 sortOrder（按默认列表顺序，未在列表中的排最后）
-  const allCities = await prisma.city.findMany({ orderBy: { name: "asc" } });
+  const allCities = await prisma.city.findMany({
+    where: { workspaceId },
+    orderBy: { name: "asc" },
+  });
   let order = CITIES.length;
   for (const city of allCities) {
     const defaultIndex = CITIES.indexOf(city.name as (typeof CITIES)[number]);
@@ -27,7 +40,7 @@ async function main() {
     }
   }
 
-  console.log("Seeded cities.");
+  console.log("Seeded cities for workspace:", workspaceId);
 }
 
 main()
