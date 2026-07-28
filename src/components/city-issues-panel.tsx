@@ -10,6 +10,7 @@ import {
   resolveCityIssueAction,
 } from "@/app/actions/cities";
 import { formatDate } from "@/lib/utils";
+import { FoldableText } from "@/components/foldable-text";
 
 type CityIssue = {
   id: string;
@@ -40,7 +41,7 @@ export function CityIssuesPanel({
   );
 
   return (
-    <section className="grid gap-4 lg:grid-cols-2">
+    <section className="grid min-w-0 gap-4 lg:grid-cols-2">
       <IssueColumn
         title="团队问题"
         cityId={cityId}
@@ -74,7 +75,11 @@ function IssueColumn({
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
-  const [showArchive, setShowArchive] = useState(true);
+  const [showArchive, setShowArchive] = useState(false);
+  const [showAllOpen, setShowAllOpen] = useState(false);
+
+  const visibleOpen = showAllOpen ? openItems : openItems.slice(0, 2);
+  const hiddenOpenCount = Math.max(0, openItems.length - 2);
 
   function handleAdd(formData: FormData) {
     startTransition(async () => {
@@ -88,25 +93,35 @@ function IssueColumn({
   }
 
   return (
-    <div className="rounded-2xl border border-stone-200 bg-white p-5">
-      <h3 className="text-base font-medium text-stone-900">{title}</h3>
-      <p className="mt-1 text-sm text-stone-500">
-        进行中问题在上方；完成后归档，可记录结果便于追溯。
-      </p>
+    <div className="min-w-0 rounded-2xl border border-stone-200 bg-white p-5">
+      <div className="flex items-baseline justify-between gap-2">
+        <h3 className="text-base font-medium text-stone-900">{title}</h3>
+        {openItems.length ? (
+          <span className="text-xs text-stone-400">进行中 {openItems.length}</span>
+        ) : null}
+      </div>
 
-      <div className="mt-4">
-        <p className="mb-2 text-xs font-medium uppercase tracking-wide text-stone-400">
-          进行中
-        </p>
-        <div className="space-y-3">
-          {openItems.length ? (
-            openItems.map((issue) => (
+      <div className="mt-4 space-y-3">
+        {openItems.length ? (
+          <>
+            {visibleOpen.map((issue) => (
               <OpenIssueRow key={issue.id} issue={issue} cityId={cityId} />
-            ))
-          ) : (
-            <p className="text-sm text-stone-400">暂无进行中的问题。</p>
-          )}
-        </div>
+            ))}
+            {hiddenOpenCount > 0 ? (
+              <button
+                type="button"
+                onClick={() => setShowAllOpen((value) => !value)}
+                className="w-full rounded-xl border border-dashed border-stone-200 px-3 py-2 text-sm text-stone-500 hover:bg-stone-50"
+              >
+                {showAllOpen
+                  ? "收起多余问题"
+                  : `还有 ${hiddenOpenCount} 条进行中`}
+              </button>
+            ) : null}
+          </>
+        ) : (
+          <p className="text-sm text-stone-400">暂无进行中的问题</p>
+        )}
       </div>
 
       <form action={handleAdd} className="mt-4 flex gap-2">
@@ -126,13 +141,13 @@ function IssueColumn({
       </form>
 
       {archivedItems.length ? (
-        <div className="mt-6 rounded-xl border border-stone-100 bg-stone-50/80 p-4">
+        <div className="mt-4 border-t border-stone-100 pt-3">
           <button
             type="button"
             onClick={() => setShowArchive((value) => !value)}
             className="flex w-full items-center justify-between text-left"
           >
-            <span className="flex items-center gap-2 text-sm font-medium text-stone-700">
+            <span className="flex items-center gap-2 text-sm text-stone-500">
               <Archive className="h-4 w-4" />
               已归档（{archivedItems.length}）
             </span>
@@ -179,13 +194,13 @@ function OpenIssueRow({
   }
 
   return (
-    <div className="rounded-xl border border-stone-200 bg-white px-4 py-3">
-      <p className="text-sm leading-6 text-stone-800">{issue.content}</p>
+    <div className="min-w-0 overflow-hidden rounded-xl border border-stone-200 bg-white px-4 py-3">
+      <FoldableText text={issue.content} className="text-stone-800" />
       <div className="mt-2 flex items-center justify-between gap-2">
         <span className="text-xs text-stone-400">
           记录于 {formatDate(issue.createdAt)}
         </span>
-        <div className="flex gap-1">
+        <div className="flex shrink-0 gap-1">
           {!resolving ? (
             <button
               type="button"
@@ -262,10 +277,10 @@ function ArchivedIssueRow({
   const [pending, startTransition] = useTransition();
 
   return (
-    <div className="rounded-xl border border-stone-200 bg-white px-4 py-3">
-      <p className="text-sm leading-6 text-stone-700">{issue.content}</p>
+    <div className="min-w-0 overflow-hidden rounded-xl border border-stone-200 bg-white px-4 py-3">
+      <FoldableText text={issue.content} />
       {issue.resolveOutcome ? (
-        <p className="mt-2 rounded-lg bg-stone-50 px-3 py-2 text-sm leading-6 text-stone-600">
+        <p className="mt-2 break-words rounded-lg bg-stone-50 px-3 py-2 text-sm leading-6 text-stone-600">
           <span className="font-medium text-stone-700">结果：</span>
           {issue.resolveOutcome}
         </p>

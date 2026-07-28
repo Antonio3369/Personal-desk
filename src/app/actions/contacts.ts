@@ -30,6 +30,7 @@ export async function createContactAction(input: {
   });
 
   revalidatePath("/contacts");
+  revalidatePath(`/contacts/${contact.id}`);
   revalidatePath("/");
   if (input.cityId) {
     revalidatePath(`/cities/${input.cityId}`);
@@ -66,9 +67,13 @@ export async function updateContactAction(
   });
 
   revalidatePath("/contacts");
+  revalidatePath(`/contacts/${contact.id}`);
   revalidatePath("/");
   if (contact.cityId) {
     revalidatePath(`/cities/${contact.cityId}`);
+  }
+  if (existing.cityId && existing.cityId !== contact.cityId) {
+    revalidatePath(`/cities/${existing.cityId}`);
   }
   return contact;
 }

@@ -205,7 +205,11 @@ function NoteCard({
           </Link>
         ))}
         {note.city ? <Badge>{note.city.name}</Badge> : null}
-        {note.contact ? <Badge tone="muted">{note.contact.name}</Badge> : null}
+        {note.contact ? (
+          <Link href={`/contacts/${note.contact.id}`}>
+            <Badge tone="muted">{note.contact.name}</Badge>
+          </Link>
+        ) : null}
         <span className="text-xs text-stone-400">
           {formatDate(note.updatedAt)}
         </span>

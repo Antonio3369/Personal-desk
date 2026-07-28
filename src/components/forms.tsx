@@ -237,7 +237,7 @@ export function ContactForm({
   function handleSubmit(formData: FormData) {
     startTransition(async () => {
       const { createContactAction } = await import("@/app/actions/contacts");
-      await createContactAction({
+      const contact = await createContactAction({
         name: String(formData.get("name") ?? ""),
         role: String(formData.get("role") ?? "") || null,
         organization: String(formData.get("organization") ?? "") || null,
@@ -247,7 +247,7 @@ export function ContactForm({
         interactionSummary:
           String(formData.get("interactionSummary") ?? "") || null,
       });
-      router.push("/contacts");
+      router.push(`/contacts/${contact.id}`);
       router.refresh();
     });
   }
@@ -268,7 +268,7 @@ export function ContactForm({
             className="w-full rounded-xl border border-stone-200 px-3 py-2.5 text-sm"
           />
         </Field>
-        <Field label="城市/组织">
+        <Field label="组织">
           <input
             name="organization"
             className="w-full rounded-xl border border-stone-200 px-3 py-2.5 text-sm"
@@ -294,7 +294,7 @@ export function ContactForm({
           </select>
         </Field>
       </div>
-      <Field label="互动摘要">
+      <Field label="上次接点">
         <textarea
           name="interactionSummary"
           rows={3}
@@ -302,10 +302,11 @@ export function ContactForm({
           className="w-full rounded-xl border border-stone-200 px-3 py-2.5 text-sm"
         />
       </Field>
-      <Field label="备注">
+      <Field label="见面注意">
         <textarea
           name="notes"
           rows={3}
+          placeholder="雷区、偏好、见面前提醒自己的话"
           className="w-full rounded-xl border border-stone-200 px-3 py-2.5 text-sm"
         />
       </Field>

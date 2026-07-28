@@ -72,9 +72,10 @@ export default async function DashboardPage() {
             {contactsToReach.length ? (
               <div className="space-y-3">
                 {contactsToReach.map((contact) => (
-                  <div
+                  <Link
                     key={contact.id}
-                    className="rounded-2xl border border-stone-200 bg-white p-4"
+                    href={`/contacts/${contact.id}`}
+                    className="block rounded-2xl border border-stone-200 bg-white p-4 transition hover:border-stone-300 hover:bg-stone-50"
                   >
                     <p className="font-medium text-stone-900">{contact.name}</p>
                     {contact.interactionSummary ? (
@@ -82,7 +83,7 @@ export default async function DashboardPage() {
                         {contact.interactionSummary}
                       </p>
                     ) : null}
-                  </div>
+                  </Link>
                 ))}
               </div>
             ) : (

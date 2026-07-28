@@ -1,11 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { CollapsibleSection } from "@/components/collapsible-section";
 import { DeleteCityButton } from "@/components/delete-city-button";
 import { CityEditor } from "@/components/city-editor";
 import { CityIssuesPanel } from "@/components/city-issues-panel";
 import { RelatedNotesSection } from "@/components/related-notes";
 import { TodoList } from "@/components/todo-list";
-import { Badge, EmptyState, SectionHeader } from "@/components/ui-shell";
+import { Badge, SectionHeader } from "@/components/ui-shell";
 import { hasCityPermission } from "@/lib/module-access";
 import { getCityById } from "@/lib/queries";
 import { requireUserWorkspace } from "@/lib/workspace-context";
@@ -50,12 +51,18 @@ export default async function CityDetailPage({
   const otherTodos = city.todos.filter(
     (todo) => !["deferred", "waiting"].includes(todo.progress),
   );
+  const openIssueCount = city.issues.filter((issue) => issue.status === "open")
+    .length;
 
   return (
-    <div className="mx-auto max-w-5xl space-y-8">
+    <div className="mx-auto max-w-5xl space-y-4">
       <SectionHeader
         title={`${city.name} · 出差简报`}
-        description="团队问题、业务问题、待跟进和待提起的事项，出发前先过一遍。"
+        description={
+          openIssueCount || waitingTodos.length
+            ? "先看进行中的问题和待跟进；其余按需展开。"
+            : "出发前过一遍：有内容的会默认展开，空的收在下面。"
+        }
         action={
           headerActions.length ? (
             <div className="flex flex-wrap gap-2">{headerActions}</div>
@@ -79,77 +86,73 @@ export default async function CityDetailPage({
         </section>
       ) : null}
 
-      <section className="space-y-4">
-        <h3 className="text-lg font-medium text-stone-900">待跟进</h3>
-        {waitingTodos.length ? (
-          <TodoList items={waitingTodos} compact />
-        ) : (
-          <EmptyState
-            title="暂无等待对方的事项"
-            description="比如合作方还没跟完的需求，可以设为「等待对方」。"
-          />
-        )}
-      </section>
+      <CollapsibleSection
+        variant="card"
+        title="待跟进"
+        count={waitingTodos.length}
+        defaultOpen={waitingTodos.length > 0}
+        emptyHint="暂无等待对方的事项"
+      >
+        <TodoList items={waitingTodos} compact />
+      </CollapsibleSection>
 
-      <section className="space-y-4">
-        <h3 className="text-lg font-medium text-stone-900">待合适时机再提</h3>
-        {deferredTodos.length ? (
-          <TodoList items={deferredTodos} compact />
-        ) : (
-          <EmptyState
-            title="暂无择机提起的事项"
-            description="比如到了这座城市再聊的产品或合作话题。"
-          />
-        )}
-      </section>
+      <CollapsibleSection
+        variant="card"
+        title="待合适时机再提"
+        count={deferredTodos.length}
+        defaultOpen={deferredTodos.length > 0}
+        emptyHint="暂无择机提起的事项"
+      >
+        <TodoList items={deferredTodos} compact />
+      </CollapsibleSection>
 
-      <section className="space-y-4">
-        <h3 className="text-lg font-medium text-stone-900">其他 open items</h3>
-        {otherTodos.length ? (
-          <TodoList items={otherTodos} compact />
-        ) : (
-          <EmptyState title="暂无其他未完成事项" description="" />
-        )}
-      </section>
+      <CollapsibleSection
+        variant="card"
+        title="其他 open items"
+        count={otherTodos.length}
+        defaultOpen={otherTodos.length > 0}
+        emptyHint="暂无其他未完成事项"
+      >
+        <TodoList items={otherTodos} compact />
+      </CollapsibleSection>
 
-      <section className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h3 className="text-lg font-medium text-stone-900">相关人脉</h3>
+      <CollapsibleSection
+        variant="card"
+        title="相关人脉"
+        count={city.contacts.length}
+        defaultOpen={city.contacts.length > 0}
+        emptyHint="还没有关联人脉"
+        action={
           <Link href="/contacts" className="text-sm text-stone-500">
-            管理人脉
+            管理
           </Link>
-        </div>
-        {city.contacts.length ? (
-          <div className="grid gap-3 sm:grid-cols-2">
-            {city.contacts.map((contact) => (
-              <div
-                key={contact.id}
-                className="rounded-2xl border border-stone-200 bg-white p-4"
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <p className="font-medium text-stone-900">{contact.name}</p>
-                  {contact.relationType ? (
-                    <Badge tone="muted">{contact.relationType}</Badge>
-                  ) : null}
-                </div>
-                {contact.role ? (
-                  <p className="mt-2 text-sm text-stone-500">{contact.role}</p>
-                ) : null}
-                {contact.interactionSummary ? (
-                  <p className="mt-3 text-sm leading-6 text-stone-500">
-                    {contact.interactionSummary}
-                  </p>
+        }
+      >
+        <div className="grid gap-3 sm:grid-cols-2">
+          {city.contacts.map((contact) => (
+            <Link
+              key={contact.id}
+              href={`/contacts/${contact.id}`}
+              className="rounded-2xl border border-stone-200 bg-stone-50 p-4 transition hover:border-stone-300 hover:bg-white"
+            >
+              <div className="flex items-center justify-between gap-3">
+                <p className="font-medium text-stone-900">{contact.name}</p>
+                {contact.relationType ? (
+                  <Badge tone="muted">{contact.relationType}</Badge>
                 ) : null}
               </div>
-            ))}
-          </div>
-        ) : (
-          <EmptyState
-            title="还没有相关人脉"
-            description="可以在人脉页添加，并关联到这座城市。"
-          />
-        )}
-      </section>
+              {contact.role ? (
+                <p className="mt-2 text-sm text-stone-500">{contact.role}</p>
+              ) : null}
+              {contact.interactionSummary ? (
+                <p className="mt-3 text-sm leading-6 text-stone-500">
+                  {contact.interactionSummary}
+                </p>
+              ) : null}
+            </Link>
+          ))}
+        </div>
+      </CollapsibleSection>
 
       <RelatedNotesSection
         notes={city.notes_rel}
@@ -157,7 +160,14 @@ export default async function CityDetailPage({
         showAllHref={`/notes?type=learning`}
       />
 
-      <CityEditor city={city} />
+      <CollapsibleSection
+        variant="card"
+        title="城市设置"
+        defaultOpen={false}
+        emptyHint="备注与 Leader 链接"
+      >
+        <CityEditor city={city} />
+      </CollapsibleSection>
     </div>
   );
 }

@@ -25,16 +25,10 @@ export function CityEditor({ city }: CityEditorProps) {
   }
 
   return (
-    <form
-      action={handleSubmit}
-      className="space-y-4 rounded-2xl border border-stone-200 bg-white p-5"
-    >
-      <div>
-        <h3 className="text-base font-medium text-stone-900">城市备注</h3>
-        <p className="mt-1 text-sm text-stone-500">
-          团队和业务问题请在上方逐条添加；这里放整体近况和外链。
-        </p>
-      </div>
+    <form action={handleSubmit} className="space-y-4">
+      <p className="text-sm text-stone-500">
+        团队和业务问题请在上方逐条添加；这里放整体近况和外链。
+      </p>
       <Field label="近况备注" name="notes" defaultValue={city.notes ?? ""} />
       <Field
         label="Leader Space 链接"

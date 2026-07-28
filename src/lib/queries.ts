@@ -119,10 +119,30 @@ export async function getContacts() {
     orderBy: { updatedAt: "desc" },
     include: {
       city: { select: { id: true, name: true } },
-      _count: { select: { todos: true, notes_rel: true } },
+      _count: {
+        select: {
+          todos: { where: { progress: { not: "done" } } },
+          notes_rel: true,
+        },
+      },
+    },
+  });
+}
+
+export async function getContactById(id: string) {
+  const workspaceId = await getWorkspaceId();
+
+  return db.contact.findFirst({
+    where: { id, workspaceId },
+    include: {
+      city: { select: { id: true, name: true } },
+      todos: {
+        where: { progress: { not: "done" } },
+        orderBy: [{ followUpDate: "asc" }, { updatedAt: "desc" }],
+        include: todoInclude,
+      },
       notes_rel: {
         orderBy: { updatedAt: "desc" },
-        take: 3,
         include: noteInclude,
       },
     },

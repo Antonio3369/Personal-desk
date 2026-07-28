@@ -46,6 +46,7 @@ function revalidateNotePaths(cityId?: string | null, contactId?: string | null) 
   }
   if (contactId) {
     revalidatePath("/contacts");
+    revalidatePath(`/contacts/${contactId}`);
   }
 }
 

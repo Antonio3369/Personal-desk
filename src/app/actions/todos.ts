@@ -142,12 +142,16 @@ export async function createTodoAction(input: TodoInput) {
   if (input.cityId) {
     revalidatePath(`/cities/${input.cityId}`);
   }
+  if (input.contactId) {
+    revalidatePath("/contacts");
+    revalidatePath(`/contacts/${input.contactId}`);
+  }
   return todo;
 }
 
 export async function updateTodoAction(id: string, input: Partial<TodoInput>) {
   const { workspaceId } = await requireModuleAccess("todos");
-  await assertTodoInWorkspace(id, workspaceId);
+  const existing = await assertTodoInWorkspace(id, workspaceId);
 
   const todo = await db.todo.update({
     where: { id },
@@ -196,6 +200,16 @@ export async function updateTodoAction(id: string, input: Partial<TodoInput>) {
   if (todo.cityId) {
     revalidatePath(`/cities/${todo.cityId}`);
   }
+  if (existing.cityId && existing.cityId !== todo.cityId) {
+    revalidatePath(`/cities/${existing.cityId}`);
+  }
+  if (todo.contactId) {
+    revalidatePath("/contacts");
+    revalidatePath(`/contacts/${todo.contactId}`);
+  }
+  if (existing.contactId && existing.contactId !== todo.contactId) {
+    revalidatePath(`/contacts/${existing.contactId}`);
+  }
   return todo;
 }
 
@@ -213,6 +227,10 @@ export async function deleteTodoAction(id: string) {
   revalidatePath("/todos");
   if (todo.cityId) {
     revalidatePath(`/cities/${todo.cityId}`);
+  }
+  if (todo.contactId) {
+    revalidatePath("/contacts");
+    revalidatePath(`/contacts/${todo.contactId}`);
   }
 }
 

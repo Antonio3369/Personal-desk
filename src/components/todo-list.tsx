@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { TODO_PROGRESS, TODO_SCOPES, type TodoProgress } from "@/lib/constants";
@@ -131,7 +132,11 @@ function TodoCard({
               {TODO_PROGRESS[todo.progress as TodoProgress] ?? todo.progress}
             </Badge>
             {todo.city ? <Badge>{todo.city.name}</Badge> : null}
-            {todo.contact ? <Badge>{todo.contact.name}</Badge> : null}
+            {todo.contact ? (
+              <Link href={`/contacts/${todo.contact.id}`}>
+                <Badge>{todo.contact.name}</Badge>
+              </Link>
+            ) : null}
             {todo.followUpDate && !done ? (
               <Badge tone="warning">跟进 {formatDate(todo.followUpDate)}</Badge>
             ) : null}
