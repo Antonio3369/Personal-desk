@@ -48,9 +48,6 @@ export function InviteActivateForm({
             className="min-w-0 flex-1 rounded-xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm text-stone-600"
           />
         </div>
-        <p className="mt-2 text-xs text-stone-500">
-          此手机号由管理员登记，不可修改
-        </p>
       </div>
 
       <div>
@@ -63,7 +60,7 @@ export function InviteActivateForm({
           required
           maxLength={20}
           className="w-full rounded-xl border border-stone-200 px-4 py-3 text-sm outline-none ring-stone-900/10 focus:ring-4"
-          placeholder="Antonio"
+          placeholder="请输入您的名字"
         />
         <p className="mt-2 text-xs text-stone-500">将显示在工作台顶部</p>
       </div>

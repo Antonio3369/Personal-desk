@@ -3,7 +3,11 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { TodoCalendar, type CalendarTodo } from "@/components/todo-calendar";
+import {
+  TodoCalendar,
+  calendarDayKey,
+  type CalendarTodo,
+} from "@/components/todo-calendar";
 import { CollapsibleSection } from "@/components/collapsible-section";
 import { TodoList, type TodoItem } from "@/components/todo-list";
 import { EmptyState, SectionHeader } from "@/components/ui-shell";
@@ -14,7 +18,7 @@ import {
   isDueToday,
   isWithinDays,
 } from "@/lib/utils";
-import { format, isSameDay, parseISO } from "date-fns";
+import { format } from "date-fns";
 
 type ListView =
   | "today"
@@ -71,17 +75,23 @@ const LIST_TITLES: Record<ListView, string> = {
   "done-personal": "已完成 · 个人",
 };
 
-function toDate(value: string | Date | null) {
-  if (!value) return null;
-  return typeof value === "string" ? parseISO(value) : value;
-}
-
 function sortByCompletionDesc(a: TodoItem, b: TodoItem) {
   const ta = completionTimestamp(a);
   const tb = completionTimestamp(b);
   const aTime = ta ? new Date(ta).getTime() : 0;
   const bTime = tb ? new Date(tb).getTime() : 0;
   return bTime - aTime;
+}
+
+function sortDayItems(items: TodoItem[]) {
+  return items.slice().sort((a, b) => {
+    if (a.progress === "done" && b.progress !== "done") return 1;
+    if (a.progress !== "done" && b.progress === "done") return -1;
+    if (a.progress === "done" && b.progress === "done") {
+      return sortByCompletionDesc(a, b);
+    }
+    return 0;
+  });
 }
 
 function filterDoneItems(items: TodoItem[], view: ListView) {
@@ -223,13 +233,42 @@ export function TodosWorkspace({
 
   const dayItems = useMemo(() => {
     if (!selectedDay) return filteredByView;
-    return filteredByView.filter((item) => {
-      const followUp = toDate(item.followUpDate);
-      if (followUp && isSameDay(followUp, selectedDay)) return true;
-      const completed = toDate(completionTimestamp(item));
-      return completed && isSameDay(completed, selectedDay);
-    });
-  }, [filteredByView, selectedDay]);
+    // Use the same day-key as TodoCalendar, and the same item set (calendarItems),
+    // so clicking a cell always shows exactly what that cell displayed.
+    const dayKey = format(selectedDay, "yyyy-MM-dd");
+    const idsOnDay = new Set(
+      calendarItems
+        .filter((item) => calendarDayKey(item) === dayKey)
+        .map((item) => item.id),
+    );
+    const fromList = listItems.filter((item) => idsOnDay.has(item.id));
+    if (fromList.length === idsOnDay.size) {
+      return sortDayItems(fromList);
+    }
+    // Fallback: hydrate any calendar-only rows missing from listItems
+    const byId = new Map(listItems.map((item) => [item.id, item]));
+    const merged: TodoItem[] = [];
+    for (const item of calendarItems) {
+      if (!idsOnDay.has(item.id)) continue;
+      const full = byId.get(item.id);
+      if (full) {
+        merged.push(full);
+      } else {
+        merged.push({
+          id: item.id,
+          content: item.content,
+          progress: item.progress,
+          scope: item.scope,
+          nature: null,
+          followUpDate: item.followUpDate,
+          completedAt: item.completedAt ?? null,
+          updatedAt: item.updatedAt ?? undefined,
+          city: item.city ? { id: "", name: item.city.name } : null,
+        });
+      }
+    }
+    return sortDayItems(merged);
+  }, [calendarItems, filteredByView, listItems, selectedDay]);
 
   const showingDay = selectedDay !== null;
   const displayItems = showingDay ? dayItems : filteredByView;
@@ -358,13 +397,16 @@ export function TodosWorkspace({
         <div>
           <h3 className="text-lg font-medium text-stone-900">{listTitle}</h3>
           {showingDay ? (
-            <button
-              type="button"
-              onClick={() => setSelectedDay(null)}
-              className="mt-1 text-sm text-stone-500 hover:text-stone-700"
-            >
-              清除日期筛选，看列表视图
-            </button>
+            <>
+              <button
+                type="button"
+                onClick={() => setSelectedDay(null)}
+                className="mt-1 text-sm text-stone-500 hover:text-stone-700"
+              >
+                清除日期筛选，看列表视图
+              </button>
+              <p className="mt-1 text-sm text-stone-500">共 {displayItems.length} 条</p>
+            </>
           ) : (
             <p className="mt-1 text-sm text-stone-500">
               {isArchiveView

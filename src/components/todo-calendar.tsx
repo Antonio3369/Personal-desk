@@ -34,11 +34,30 @@ function toDate(value: string | Date | null | undefined) {
   return typeof value === "string" ? parseISO(value) : value;
 }
 
-function calendarDate(todo: CalendarTodo) {
+export function calendarDate(todo: {
+  progress: string;
+  followUpDate?: string | Date | null;
+  completedAt?: string | Date | null;
+  updatedAt?: string | Date | null;
+}) {
   if (todo.progress === "done") {
     return toDate(todo.completedAt) ?? toDate(todo.updatedAt);
   }
-  return toDate(todo.followUpDate);
+  return toDate(todo.followUpDate ?? null);
+}
+
+/** Stable local day key, matching how the calendar groups items. */
+export function calendarDayKey(
+  todo: {
+    progress: string;
+    followUpDate?: string | Date | null;
+    completedAt?: string | Date | null;
+    updatedAt?: string | Date | null;
+  },
+  day?: Date,
+) {
+  const date = day ?? calendarDate(todo);
+  return date ? format(date, "yyyy-MM-dd") : null;
 }
 
 export function TodoCalendar({
