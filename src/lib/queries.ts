@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import { getWorkspaceId } from "@/lib/workspace-context";
+import { sortTodayFocusTodos } from "@/lib/today-focus";
 import { isDueToday, isDueThisWeek, isWithinDays } from "@/lib/utils";
 
 const noteInclude = {
@@ -285,6 +286,18 @@ export async function getCompletedTodosCount() {
   });
 }
 
+export async function getTodayFocusTodos(limit = 5) {
+  const workspaceId = await getWorkspaceId();
+
+  const todos = await db.todo.findMany({
+    where: { workspaceId, progress: { not: "done" } },
+    include: todoInclude,
+    orderBy: [{ followUpDate: "asc" }, { updatedAt: "desc" }],
+  });
+
+  return sortTodayFocusTodos(todos).slice(0, limit);
+}
+
 export async function getDashboardData() {
   const [
     todayTodos,
@@ -294,6 +307,7 @@ export async function getDashboardData() {
     contactsToReach,
     recentlyCompleted,
     completedCount,
+    todayFocusTodos,
   ] = await Promise.all([
     getTodos({ view: "today" }),
     getRecentActiveTodos(8),
@@ -304,6 +318,7 @@ export async function getDashboardData() {
     getContactsToReach(),
     getRecentlyCompletedTodos(5),
     getCompletedTodosCount(),
+    getTodayFocusTodos(5),
   ]);
 
   return {
@@ -314,6 +329,7 @@ export async function getDashboardData() {
     contactsToReach,
     recentlyCompleted,
     completedCount,
+    todayFocusTodos,
   };
 }
 

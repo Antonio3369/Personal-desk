@@ -25,7 +25,7 @@ const NAV_DEFS: Array<{
 }> = [
   { href: "/", moduleKey: "dashboard", icon: Home },
   { href: "/todos", moduleKey: "todos", icon: CheckSquare },
-  { href: "/notes", moduleKey: "notes", icon: BookOpen, primary: true },
+  { href: "/notes", moduleKey: "notes", icon: BookOpen },
   { href: "/cities", moduleKey: "cities", icon: Building2 },
   { href: "/contacts", moduleKey: "contacts", icon: Users },
 ];
@@ -94,11 +94,49 @@ export function Sidebar({
   );
 }
 
+const MOBILE_NAV_DEFS: Array<{
+  href: string;
+  label: string;
+  icon: LucideIcon;
+  primary?: boolean;
+  moduleKey?: ModuleKey;
+  capture?: boolean;
+}> = [
+  { href: "/", label: "首页", icon: Home, moduleKey: "dashboard" },
+  { href: "/todos", label: "待办", icon: CheckSquare, moduleKey: "todos" },
+  { href: "/capture", label: "记录", icon: Plus, primary: true, capture: true },
+  { href: "/cities", label: "城市", icon: Building2, moduleKey: "cities" },
+  { href: "/contacts", label: "人脉", icon: Users, moduleKey: "contacts" },
+];
+
+function buildMobileNavItems(enabledModules: ModuleKey[]) {
+  const showCapture =
+    enabledModules.includes("todos") || enabledModules.includes("notes");
+
+  const sideItems = MOBILE_NAV_DEFS.filter((item) => {
+    if (item.capture) {
+      return false;
+    }
+    if (!item.moduleKey) {
+      return true;
+    }
+    return enabledModules.includes(item.moduleKey);
+  });
+
+  const captureItem = MOBILE_NAV_DEFS.find((item) => item.capture);
+  if (!showCapture || !captureItem) {
+    return sideItems;
+  }
+
+  const mid = Math.ceil(sideItems.length / 2);
+  return [...sideItems.slice(0, mid), captureItem, ...sideItems.slice(mid)];
+}
+
 export function MobileNav({ enabledModules }: { enabledModules: ModuleKey[] }) {
   const pathname = usePathname();
-  const items = filterNavModules(NAV_DEFS, enabledModules);
+  const mobileItems = buildMobileNavItems(enabledModules);
 
-  if (!items.length) {
+  if (!mobileItems.length) {
     return null;
   }
 
@@ -106,9 +144,11 @@ export function MobileNav({ enabledModules }: { enabledModules: ModuleKey[] }) {
     <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-stone-200 bg-white/95 backdrop-blur lg:hidden">
       <div
         className="mx-auto grid px-2 py-2"
-        style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }}
+        style={{
+          gridTemplateColumns: `repeat(${mobileItems.length}, minmax(0, 1fr))`,
+        }}
       >
-        {items.map((item) => {
+        {mobileItems.map((item) => {
           const active =
             item.href === "/"
               ? pathname === "/"
@@ -131,7 +171,7 @@ export function MobileNav({ enabledModules }: { enabledModules: ModuleKey[] }) {
                 className={cn(
                   "flex h-8 w-8 items-center justify-center rounded-full",
                   item.primary
-                    ? "border border-stone-300 bg-white text-stone-800"
+                    ? "border border-stone-300 bg-teal-900 text-white shadow-sm"
                     : active
                       ? "bg-teal-900 text-white"
                       : "text-stone-400",
@@ -139,7 +179,7 @@ export function MobileNav({ enabledModules }: { enabledModules: ModuleKey[] }) {
               >
                 <Icon className="h-4 w-4 stroke-[1.5]" />
               </span>
-              {MODULE_LABELS[item.moduleKey]}
+              {item.label}
             </Link>
           );
         })}
@@ -195,10 +235,11 @@ export function Badge({
   tone = "default",
 }: {
   children: React.ReactNode;
-  tone?: "default" | "warning" | "success" | "muted";
+  tone?: "default" | "active" | "warning" | "success" | "muted";
 }) {
   const tones = {
     default: "bg-stone-100 text-stone-700",
+    active: "bg-teal-50 text-teal-800",
     warning: "bg-amber-50 text-amber-700",
     success: "bg-emerald-50 text-emerald-700",
     muted: "bg-stone-50 text-stone-500",

@@ -3,6 +3,17 @@
 :root {
   --background: #f7f7f5;
   --foreground: #1c1917;
+
+  --color-primary: #134e4a;
+  --color-primary-hover: #0f3d3a;
+
+  --color-status-active: #115e59;
+  --color-status-waiting: #b45309;
+  --color-status-done: #047857;
+
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.06);
+  --shadow-card-hover: 0 4px 12px rgba(17, 94, 89, 0.1),
+    0 2px 4px rgba(0, 0, 0, 0.06);
 }
 
 @theme inline {
@@ -11,6 +22,22 @@
   --font-sans: var(--font-latin-serif), "PingFang SC", "Hiragino Sans GB",
     "Microsoft YaHei", "Noto Sans SC", system-ui, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --shadow-card: var(--shadow-card);
+  --shadow-card-hover: var(--shadow-card-hover);
+}
+
+@utility card-surface {
+  border-radius: 1rem;
+  border-width: 1px;
+  border-color: var(--color-stone-200, #e7e5e4);
+  background-color: #fff;
+  box-shadow: var(--shadow-card);
+  transition-property: box-shadow, border-color, background-color;
+  transition-duration: 150ms;
+
+  &:hover {
+    box-shadow: var(--shadow-card-hover);
+  }
 }
 
 body {

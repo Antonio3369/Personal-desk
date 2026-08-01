@@ -1,4 +1,5 @@
 import type { UploadKind } from "@/lib/upload-image-url.shared";
+import { compressImageFiles } from "@/lib/compress-image-client";
 import { getImageFilesFromFormData } from "@/components/image-upload-field";
 
 export function stripImageFilesFromFormData(formData: FormData) {
@@ -26,8 +27,10 @@ export async function uploadImagesFromForm(
     return [];
   }
 
+  const compressed = await compressImageFiles(files);
+
   const body = new FormData();
-  for (const file of files) {
+  for (const file of compressed) {
     body.append("images", file);
   }
 

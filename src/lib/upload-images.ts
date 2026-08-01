@@ -70,25 +70,24 @@ export async function saveUploadImages(kind: UploadKind, files: File[]) {
   const limited = files.slice(0, MAX_FILES);
   await mkdir(uploadDir, { recursive: true });
 
-  const paths: string[] = [];
-  for (const file of limited) {
-    const imageType = inferImageType(file);
-    if (!imageType) {
-      throw new Error("仅支持 JPG、PNG、WebP、GIF、HEIC 格式的图片");
-    }
-    if (file.size > MAX_FILE_SIZE) {
-      throw new Error("单张图片不能超过 5MB");
-    }
+  return Promise.all(
+    limited.map(async (file) => {
+      const imageType = inferImageType(file);
+      if (!imageType) {
+        throw new Error("仅支持 JPG、PNG、WebP、GIF、HEIC 格式的图片");
+      }
+      if (file.size > MAX_FILE_SIZE) {
+        throw new Error("单张图片不能超过 5MB");
+      }
 
-    const ext = EXT_BY_TYPE[imageType] ?? ".jpg";
-    const filename = `${Date.now()}-${randomBytes(6).toString("hex")}${ext}`;
-    const absolutePath = path.join(uploadDir, filename);
-    const buffer = Buffer.from(await file.arrayBuffer());
-    await writeFile(absolutePath, buffer);
-    paths.push(`${getUploadPrefix(kind)}${filename}`);
-  }
-
-  return paths;
+      const ext = EXT_BY_TYPE[imageType] ?? ".jpg";
+      const filename = `${Date.now()}-${randomBytes(6).toString("hex")}${ext}`;
+      const absolutePath = path.join(uploadDir, filename);
+      const buffer = Buffer.from(await file.arrayBuffer());
+      await writeFile(absolutePath, buffer);
+      return `${getUploadPrefix(kind)}${filename}`;
+    }),
+  );
 }
 
 /** @deprecated Use saveUploadImages("todos", files) */

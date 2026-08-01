@@ -13,6 +13,7 @@ export type ContactListItem = {
   organization: string | null;
   relationType: string | null;
   interactionSummary: string | null;
+  lastInteractionAt: string | Date | null;
   city: { id: string; name: string } | null;
   _count: { todos: number; notes_rel: number };
 };

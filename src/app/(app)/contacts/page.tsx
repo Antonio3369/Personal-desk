@@ -7,5 +7,8 @@ export default async function ContactsPage() {
     getFormOptions(),
   ]);
 
-  return <ContactsWorkspace contacts={contacts} cities={cities} />;
+  return <ContactsWorkspace contacts={contacts.map((contact) => ({
+    ...contact,
+    lastInteractionAt: contact.lastInteractionAt?.toISOString() ?? null,
+  }))} cities={cities} />;
 }

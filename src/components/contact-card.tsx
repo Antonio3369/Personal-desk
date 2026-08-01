@@ -1,4 +1,5 @@
 import type { ContactListItem } from "@/components/contacts-workspace";
+import { ContactWarmthHint } from "@/components/follow-up-hint";
 import { Badge } from "@/components/ui-shell";
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
@@ -19,7 +20,7 @@ export function ContactCard({
   return (
     <Link
       href={`/contacts/${contact.id}`}
-      className="block rounded-2xl border border-stone-200 bg-white p-5 transition hover:border-stone-300 hover:bg-stone-50"
+      className="card-surface block p-5 hover:border-stone-300 hover:bg-stone-50"
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
@@ -37,6 +38,10 @@ export function ContactCard({
           {subtitle ? (
             <p className="mt-2 text-sm text-stone-500">{subtitle}</p>
           ) : null}
+          <ContactWarmthHint
+            lastInteractionAt={contact.lastInteractionAt}
+            className="mt-2 block"
+          />
           {contact.interactionSummary ? (
             <p className="mt-3 line-clamp-2 break-words text-sm leading-6 text-stone-600">
               {contact.interactionSummary}
