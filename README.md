@@ -58,4 +58,5 @@ src/components/  UI
 src/lib/         查询与工具
 prisma/          模型与本地 SQLite
 deploy/          腾讯云部署脚本（对齐 Ali）
+docs/            设计稿与 PRD
 ```

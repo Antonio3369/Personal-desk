@@ -3,7 +3,7 @@
 > Notion 风格的个人知识与业务工作台：**手机快记，电脑整理**。  
 > 部署细节见 [DEPLOY.md](./DEPLOY.md)，快速入门见 [README.md](./README.md)，多用户 PRD 见 [docs/PRD-multi-user.md](./docs/PRD-multi-user.md)。
 
-**最后更新**：2026-07-28  
+**最后更新**：2026-08-01  
 **本地根目录**：`/Users/xin/projects/personal-desk`  
 **生产地址**：https://desk.orblead.com
 
@@ -14,7 +14,7 @@
 | 项 | 说明 |
 |---|---|
 | 产品名 | **个人工作台**（Personal Desk） |
-| 定位 | 个人知识与业务工作台；多用户隔离，每人一个 Workspace |
+| 定位 | 个人知识与业务工作台（界面体现智能跟进）；多用户隔离，每人一个 Workspace |
 | 核心场景 | 待办跟进、城市出差 briefing、人脉维护、笔记沉淀 |
 | 双端 | 同一套响应式 Web；手机底部导航 + 电脑侧栏 |
 | 数据 | 本地 / 生产均为 **SQLite**（生产在 Docker volume） |
@@ -23,7 +23,7 @@
 
 | 模块 | 路由 | 说明 |
 |---|---|---|
-| 首页 | `/` | 今日/进行中/等待/已完成统计、进行中列表、该联系的人、最近完成 |
+| 首页 | `/` | **桌面**：统计卡、进行中列表、该联系的人、最近完成 · **手机**：2×2 统计、今日聚焦、该联系的人（≤3）、更多→笔记 |
 | 待办 | `/todos` | 工作/个人、进度、跟进日期、标签、附图、日历 + 列表 |
 | 城市 | `/cities`, `/cities/[id]` | 8 城 briefing、问题跟踪、关联待办/人脉/笔记 |
 | 人脉 | `/contacts`, `/contacts/[id]` | 列表找人；详情一眼 briefing（未了待办/上次接点/见面注意）+ 关联待办笔记 |
@@ -81,11 +81,30 @@
 - 首页「该联系的人」、城市页相关人脉、待办/笔记上的人名均可跳进详情
 
 **图片上传（两步）**
-- 客户端先 `POST /api/uploads/{todos|notes}` 上传文件
+- 客户端先 `POST /api/uploads/{todos|notes}` 上传文件（上传前 **客户端压缩**：长边 ≤1920px，JPEG 质量约 82%）
 - 再调 Server Action，只传 `imagePaths` JSON（不传 File，避免 multipart 报错）
 - 访问走 `/api/images/{kind}/{filename}`；直接 `/uploads/*` 被 middleware 404
+- 待办/笔记附图支持 **应用内灯箱预览**（关闭按钮、Esc、点背景关闭）
 
-**UI**
+**UI / 智能感知（2026-08）**
+- 主色 **teal-900**；语义色：进行中=teal、等待对方=琥珀、已完成=绿（今日统计卡保持灰）
+- 「已等 X 天」（`waiting` 待办）、「上次联系 X 天前」（人脉）；≥3 天琥珀高亮
+- 待办列表状态圆点；卡片轻阴影（`card-surface`）；设计 Token 见 `globals.css`
+- 字体：品牌位 **Libre Bodoni** + 系统无衬线（未换 Inter / 香槟金体系）
+
+**手机导航（Phase 2）**
+- 底栏 5 格（模块开通时）：**首页 · 待办 · 记录 · 城市 · 人脉**（「记录」始终居中，`/capture`）
+- 笔记不在底栏，手机首页 **「更多」** 进入 `/notes`
+- 侧栏桌面仍保留全模块 + 底部「快速记录」
+
+**桌面首页**
+- 四张语义色 StatCard、进行中列表、该联系的人、最近完成（与 Phase 1 前结构一致，增强视觉与跟进提示）
+
+**手机首页**
+- 「今日聚焦」：最多 5 条待办（waiting 逾期/≥3 天 → 今日跟进 → 进行中）
+- 「该联系的人」最多 3 人；无「最近完成」长列表
+
+**UI（基础）**
 - 素、沉稳；选中态 **teal-900**；Lucide 图标
 - 登录页字段 **Password:**；顶栏展示使用者 displayName
 
@@ -93,7 +112,6 @@
 
 | 项 | 说明 |
 |---|---|
-| 手机底栏无「快速记录」 | 仅侧栏有；首页文案可再对齐 |
 | 登录忽略 `from` 重定向 | 登出后未回到原页面 |
 | 模块未启用时静默跳转 | 可改为明确提示 |
 | P1 | 待办看板（按责任状态分列） |
@@ -378,6 +396,10 @@ ssh sales-cloud 'cd /opt/personal-desk && ./deploy/setup-ssl.sh'
 | 管理后台 | `app/admin/`, `actions/admin-users.ts`, `actions/invites.ts` |
 | 图片 | `lib/upload-images*.ts`, `app/api/uploads/`, `app/api/images/` |
 | 导航壳 | `components/ui-shell.tsx`, `app/(app)/layout.tsx` |
+| 首页 / 今日聚焦 | `app/(app)/page.tsx`, `lib/today-focus.ts`, `lib/follow-up.ts` |
+| 智能提示 UI | `components/follow-up-hint.tsx`, `components/status-dot.tsx` |
+| 附图预览 | `components/attachment-image-gallery.tsx` |
+| 图片压缩 | `lib/compress-image-client.ts` |
 | 部署 | `DEPLOY.md`, `deploy/`, `docker-compose.prod.yml` |
 
 ---
@@ -396,6 +418,7 @@ ssh sales-cloud 'cd /opt/personal-desk && ./deploy/setup-ssl.sh'
 | 快速入门 | [README.md](./README.md) |
 | 部署手册 | [DEPLOY.md](./DEPLOY.md) |
 | 多用户 PRD | [docs/PRD-multi-user.md](./docs/PRD-multi-user.md) |
+| 视觉升级方案与落地记录 | [docs/design-upgrade-summary.md](./docs/design-upgrade-summary.md) |
 | 需求记录（完整） | `~/Documents/个人工作台/需求记录.md` |
 
 ---
