@@ -16,6 +16,8 @@ services:
       DATABASE_URL: file:/app/data/dev.db
       SESSION_SECRET: ${SESSION_SECRET:?set SESSION_SECRET in .env}
       APP_PASSWORD: ${APP_PASSWORD:-desk2026}
+      ARK_API_KEY: ${ARK_API_KEY:-}
+      ARK_MODEL: ${ARK_MODEL:-}
     volumes:
       - desk_sqlite:/app/data
       - desk_uploads:/app/public/uploads

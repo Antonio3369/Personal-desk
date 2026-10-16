@@ -2,10 +2,12 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
   getAdminUserForEdit,
+  resetUserPasswordAction,
   updateUserModulesAction,
 } from "@/app/actions/admin-users";
 import { EditModulesForm } from "@/components/admin/edit-modules-form";
 import { ModuleConfigSummary } from "@/components/admin/module-config-summary";
+import { ResetPasswordForm } from "@/components/admin/reset-password-form";
 import { UserStatusPanel } from "@/components/admin/user-status-panel";
 import { modulesToConfig } from "@/lib/workspace-modules";
 
@@ -24,6 +26,7 @@ export default async function AdminEditUserPage({
   const isDisabled = user.status === "disabled";
   const defaults = modulesToConfig(user.modules);
   const updateAction = updateUserModulesAction.bind(null, id);
+  const resetPasswordAction = resetUserPasswordAction.bind(null, id);
 
   return (
     <div>
@@ -67,6 +70,19 @@ export default async function AdminEditUserPage({
           status={isDisabled ? "disabled" : "active"}
           displayName={user.displayName}
         />
+
+        <section
+          id="reset-password"
+          className="scroll-mt-8 rounded-2xl border border-stone-200 bg-white p-6"
+        >
+          <h3 className="text-sm font-medium text-stone-900">重置密码</h3>
+          <p className="mt-2 text-sm text-stone-500">
+            不需要用户当前密码。重置后请把新密码发给对方，对方可用新密码登录。
+          </p>
+          <div className="mt-4">
+            <ResetPasswordForm action={resetPasswordAction} />
+          </div>
+        </section>
 
         <section className="rounded-2xl border border-stone-200 bg-white p-6">
           <h3 className="text-sm font-medium text-stone-900">模块配置</h3>

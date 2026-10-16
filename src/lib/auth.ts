@@ -90,6 +90,27 @@ export async function updateUserPassword(
   return { success: true as const };
 }
 
+export async function resetUserPassword(userId: string, nextPassword: string) {
+  if (nextPassword.length < 6) {
+    return { error: "新密码至少 6 位" as const };
+  }
+
+  const user = await db.user.findFirst({
+    where: { id: userId, role: "user" },
+  });
+  if (!user) {
+    return { error: "用户不存在" as const };
+  }
+
+  const passwordHash = await hashPassword(nextPassword);
+  await db.user.update({
+    where: { id: userId },
+    data: { passwordHash },
+  });
+
+  return { success: true as const };
+}
+
 export async function createUserWithWorkspace(input: {
   phone: string;
   phoneRegion: PhoneRegion;

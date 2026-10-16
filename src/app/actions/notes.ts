@@ -219,3 +219,33 @@ export async function deleteNoteAction(id: string) {
 export async function toggleNoteReadAction(id: string, read: boolean) {
   await updateNoteAction(id, { readStatus: read ? "read" : "unread" });
 }
+
+export async function generateNoteSummaryAction(noteId: string) {
+  const { workspaceId } = await requireModuleAccess("notes");
+
+  const note = await db.note.findFirst({
+    where: { id: noteId, workspaceId },
+    include: {
+      tags: {
+        include: { tag: true },
+      },
+    },
+  });
+
+  if (!note) {
+    throw new Error("笔记不存在");
+  }
+
+  const { buildNoteSourceText, generateSummaryFromSource, hasNoteSummarySource } =
+    await import("@/lib/note-summary");
+
+  if (!hasNoteSummarySource(note)) {
+    throw new Error("笔记内容太少，无法生成摘要");
+  }
+
+  const sourceText = buildNoteSourceText(note);
+  const summary = await generateSummaryFromSource(sourceText);
+
+  await updateNoteAction(noteId, { summary });
+  return summary;
+}

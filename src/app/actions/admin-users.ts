@@ -10,6 +10,7 @@ import {
   parseModuleConfigFromForm,
   seedWorkspaceModules,
 } from "@/lib/workspace-modules";
+import { resetUserPassword } from "@/lib/auth";
 import { requireAdmin } from "@/lib/workspace-context";
 
 export type AdminUserRow = {
@@ -154,6 +155,40 @@ export async function enableUserAction(
     where: { id: userId },
     data: { status: "active" },
   });
+
+  revalidatePath("/admin/users");
+  revalidatePath(`/admin/users/${userId}/edit`);
+
+  return { success: true };
+}
+
+export type ResetPasswordState = {
+  error?: string;
+  success?: boolean;
+} | null;
+
+export async function resetUserPasswordAction(
+  userId: string,
+  _prev: ResetPasswordState,
+  formData: FormData,
+): Promise<ResetPasswordState> {
+  await requireAdmin();
+
+  const nextPassword = String(formData.get("nextPassword") ?? "");
+  const confirmPassword = String(formData.get("confirmPassword") ?? "");
+
+  if (!nextPassword || !confirmPassword) {
+    return { error: "请填写完整" };
+  }
+
+  if (nextPassword !== confirmPassword) {
+    return { error: "两次输入的新密码不一致" };
+  }
+
+  const result = await resetUserPassword(userId, nextPassword);
+  if ("error" in result && result.error) {
+    return { error: result.error };
+  }
 
   revalidatePath("/admin/users");
   revalidatePath(`/admin/users/${userId}/edit`);

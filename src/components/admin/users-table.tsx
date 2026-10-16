@@ -45,7 +45,7 @@ export function UsersTable({ rows }: { rows: AdminUserRow[] }) {
                     {row.statusLabel}
                   </span>
                 </td>
-                <td className="px-4 py-3">
+                <td className="whitespace-nowrap px-4 py-3">
                   {row.kind === "invite" && row.inviteId ? (
                     <Link
                       href={`/admin/invites/${row.inviteId}`}
@@ -54,12 +54,20 @@ export function UsersTable({ rows }: { rows: AdminUserRow[] }) {
                       查看
                     </Link>
                   ) : row.kind === "user" && row.userId ? (
-                    <Link
-                      href={`/admin/users/${row.userId}/edit`}
-                      className="text-stone-700 underline-offset-2 hover:underline"
-                    >
-                      {row.status === "disabled" ? "查看" : "编辑"}
-                    </Link>
+                    <div className="flex flex-col items-start gap-1.5">
+                      <Link
+                        href={`/admin/users/${row.userId}/edit`}
+                        className="text-stone-700 underline-offset-2 hover:underline"
+                      >
+                        {row.status === "disabled" ? "查看" : "编辑"}
+                      </Link>
+                      <Link
+                        href={`/admin/users/${row.userId}/edit#reset-password`}
+                        className="text-stone-700 underline-offset-2 hover:underline"
+                      >
+                        重置密码
+                      </Link>
+                    </div>
                   ) : (
                     <span className="text-stone-400">—</span>
                   )}

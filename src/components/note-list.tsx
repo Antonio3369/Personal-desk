@@ -3,9 +3,10 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { ExternalLink, Pencil, Trash2, X } from "lucide-react";
+import { ExternalLink, Pencil, Sparkles, Trash2, X } from "lucide-react";
 import {
   deleteNoteAction,
+  generateNoteSummaryAction,
   toggleNoteReadAction,
   updateNoteFromFormAction,
 } from "@/app/actions/notes";
@@ -21,6 +22,7 @@ import {
 } from "@/lib/constants";
 import { Badge } from "@/components/ui-shell";
 import { formatDate } from "@/lib/utils";
+import { hasNoteSummarySource } from "@/lib/note-summary-source";
 
 export type NoteItem = {
   id: string;
@@ -77,9 +79,11 @@ function NoteCard({
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
+  const [generating, startGenerate] = useTransition();
   const [editing, setEditing] = useState(false);
   const isLearning = note.type === "learning";
   const isRead = note.readStatus === "read";
+  const canSummarize = hasNoteSummarySource(note);
   const title =
     note.title ||
     note.highlight ||
@@ -101,6 +105,21 @@ function NoteCard({
     });
   }
 
+  function handleGenerateSummary() {
+    if (note.summary && !confirm("已有摘要，要重新生成吗？")) {
+      return;
+    }
+
+    startGenerate(async () => {
+      try {
+        await generateNoteSummaryAction(note.id);
+        router.refresh();
+      } catch (error) {
+        alert(error instanceof Error ? error.message : "生成摘要失败");
+      }
+    });
+  }
+
   if (editing && editable) {
     return (
       <NoteEditForm
@@ -114,7 +133,7 @@ function NoteCard({
   return (
     <article
       className={`rounded-2xl border bg-white p-4 shadow-sm transition ${
-        pending ? "opacity-60" : ""
+        pending || generating ? "opacity-60" : ""
       } ${isLearning && !isRead ? "border-stone-300" : "border-stone-200"}`}
     >
       <div className="flex items-start justify-between gap-3">
@@ -137,6 +156,17 @@ function NoteCard({
         </div>
         {editable ? (
           <div className="flex shrink-0 items-center gap-1">
+            {canSummarize ? (
+              <button
+                type="button"
+                onClick={handleGenerateSummary}
+                disabled={generating}
+                className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-teal-800 hover:bg-teal-50 disabled:opacity-50"
+              >
+                <Sparkles className="h-3.5 w-3.5" />
+                {generating ? "生成中…" : note.summary ? "重新摘要" : "AI 摘要"}
+              </button>
+            ) : null}
             {isLearning ? (
               <button
                 type="button"
@@ -181,7 +211,12 @@ function NoteCard({
       ) : null}
 
       {note.summary ? (
-        <p className="mt-3 text-sm leading-7 text-stone-500">{note.summary}</p>
+        <div className="mt-3 rounded-xl border border-teal-100 bg-teal-50/60 px-3.5 py-3">
+          <p className="text-xs font-medium text-teal-800">摘要</p>
+          <p className="mt-1 text-sm leading-7 text-stone-600 whitespace-pre-wrap">
+            {note.summary}
+          </p>
+        </div>
       ) : null}
 
       {note.content ? (
